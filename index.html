@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQ3R0Gk9R5e6QF4J7v1p5K4d7J5p5J4=" crossorigin="" />
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="hero-overrides.css" />
   </head>
@@ -108,7 +109,7 @@
       <section class="route-dialog" role="dialog" aria-modal="true" aria-labelledby="routeTitle">
         <button class="share-close" data-close-route aria-label="Close route details">×</button>
         <div class="route-dialog-head"><div><p class="eyebrow">ROUTE DETAILS · AUCKLAND</p><h2 id="routeTitle">The West Coast<br /><i>Loop.</i></h2></div><span class="route-rating">★ 4.9</span></div>
-        <div class="route-map" aria-label="Illustrated map of the Waitākere West Coast Loop"><span class="map-water">TASMAN SEA</span><span class="map-road road-one"></span><span class="map-road road-two"></span><span class="map-road road-three"></span><span class="map-marker marker-start">A</span><span class="map-marker marker-piha">B</span><span class="map-marker marker-karekare">C</span><span class="map-marker marker-end">D</span><span class="map-label label-start">AUCKLAND</span><span class="map-label label-piha">PIHA BEACH</span><span class="map-label label-karekare">KAREKARE FALLS</span><span class="map-label label-end">WAITĀKERE</span></div>
+        <div class="route-map" id="routeMap" aria-label="Map of the selected Auckland route"></div>
         <div class="route-facts"><div><strong>64 km</strong><span>DISTANCE</span></div><div><strong>2–3 hrs</strong><span>DRIVE TIME</span></div><div><strong>410 m</strong><span>ELEVATION</span></div></div>
         <div class="route-stops"><p class="eyebrow">WORTH THE STOP</p><div class="stop-row"><span class="stop-number">01</span><div><strong>Piha Beach lookout</strong><small>Black sand, big surf, and the best west-facing view.</small></div><span class="stop-time">+ 20 min</span></div><div class="stop-row"><span class="stop-number">02</span><div><strong>Karekare Falls</strong><small>A short walk through native bush to the falls.</small></div><span class="stop-time">+ 35 min</span></div><div class="stop-row"><span class="stop-number">03</span><div><strong>Huia village</strong><small>Quiet harbour views and a good coffee stop.</small></div><span class="stop-time">+ 25 min</span></div></div>
         <button class="route-start" id="routeStart">Start this drive <span>→</span></button>
@@ -225,6 +226,7 @@
       </section>
     </div>
     <div class="toast" id="toast">Route saved to your drives</div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script src="app.js"></script>
   </body>
 </html>

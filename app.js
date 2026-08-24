@@ -44,6 +44,7 @@ document.querySelectorAll('[data-route-card]').forEach((card) => {
     document.querySelectorAll('.route-facts strong')[2].textContent = '—';
     routeModal.classList.add('open');
     routeModal.setAttribute('aria-hidden', 'false');
+    renderRouteMap(card.dataset.routeCard);
   });
 });
 
@@ -331,6 +332,58 @@ document.querySelectorAll('[data-activity-route]').forEach((activity) => {
 
 const routeModal = document.querySelector('#routeModal');
 const routeArrow = document.querySelector('.arrow-button');
+let routeMap;
+
+const routeMapData = {
+  gorge: {
+    center: [-36.934, 174.637],
+    points: [[-36.851, 174.764], [-36.918, 174.658], [-36.959, 174.552], [-36.934, 174.637]],
+    stops: ['Auckland', 'Piha Beach', 'Karekare Falls', 'Waitakere']
+  },
+  coast: {
+    center: [-36.963, 175.185],
+    points: [[-36.851, 174.764], [-36.727, 175.083], [-36.963, 175.185], [-37.073, 175.478]],
+    stops: ['Auckland', 'Kaiaua', 'Firth of Thames', 'Thames']
+  },
+  mountain: {
+    center: [-37.002, 175.091],
+    points: [[-36.851, 174.764], [-37.002, 175.091], [-37.093, 175.154], [-37.134, 175.175]],
+    stops: ['Auckland', 'Ardmore', 'Hunua', 'Clevedon']
+  },
+  'north-shore': {
+    center: [-36.575, 174.690],
+    points: [[-36.851, 174.764], [-36.729, 174.696], [-36.609, 174.677], [-36.575, 174.690]],
+    stops: ['Auckland', 'Albany', 'Orewa', 'Millwater']
+  },
+  whangaparaoa: {
+    center: [-36.611, 174.750],
+    points: [[-36.851, 174.764], [-36.729, 174.696], [-36.625, 174.735], [-36.611, 174.750]],
+    stops: ['Auckland', 'Albany', 'Gulf Harbour', 'Army Bay']
+  }
+};
+
+function renderRouteMap(routeId = 'gorge') {
+  if (!window.L) return;
+  const route = routeMapData[routeId] || routeMapData.gorge;
+  if (!routeMap) {
+    routeMap = L.map('routeMap', { scrollWheelZoom: false, zoomControl: true });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
+      maxZoom: 19
+    }).addTo(routeMap);
+  }
+  routeMap.eachLayer((layer) => {
+    if (layer instanceof L.Polyline || layer instanceof L.CircleMarker) routeMap.removeLayer(layer);
+  });
+  L.polyline(route.points, { color: '#e36f4f', weight: 4, opacity: 0.9 }).addTo(routeMap);
+  route.points.forEach((point, index) => {
+    L.circleMarker(point, { radius: 7, color: '#f2efe9', weight: 2, fillColor: '#252a23', fillOpacity: 1 })
+      .bindTooltip(route.stops[index] || 'Route stop', { direction: 'top' })
+      .addTo(routeMap);
+  });
+  routeMap.fitBounds(route.points, { padding: [24, 24] });
+  requestAnimationFrame(() => routeMap.invalidateSize());
+}
 
 function closeRouteDialog() {
   routeModal.classList.remove('open');
@@ -340,6 +393,7 @@ function closeRouteDialog() {
 routeArrow.addEventListener('click', () => {
   routeModal.classList.add('open');
   routeModal.setAttribute('aria-hidden', 'false');
+  renderRouteMap();
 });
 
 document.querySelectorAll('[data-close-route]').forEach((button) => {
