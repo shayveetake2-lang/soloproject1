@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f2efe9" />
+    <title>Veloce — Community feed</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="hero-overrides.css" />
+  </head>
+  <body class="feed-page">
+    <main class="feed-directory">
+      <header class="routes-header"><a class="back-link" href="index.html">← Discover</a><div class="breadcrumb">COMMUNITY / <span>AUCKLAND</span></div><span class="route-count">LIVE FEED</span></header>
+      <section class="routes-intro feed-intro"><p class="eyebrow">FROM THE COMMUNITY</p><h1>Good drives<br /><em>shared.</em></h1><p>See where Auckland drivers have stopped, what they found, and which roads are worth taking slowly.</p></section>
+      <section class="feed-list">
+        <article class="feed-post"><img src="https://images.unsplash.com/photo-1553440569-bcc63803a83d?auto=format&fit=crop&w=1000&q=85" alt="Red sports car at sunset" /><div class="feed-post-copy"><div class="feed-meta"><span class="avatar feed-avatar">JK</span><span><strong>Jordan K.</strong><small>North Shore · 18 min ago</small></span></div><h2>Sunset above Piha Beach</h2><p>“The last light over the black sand is worth taking the detour. Quiet roads all the way out.”</p><div class="feed-tags"><span>PIHA</span><span>VIEWPOINT</span><button>♡ 12</button></div></div></article>
+        <article class="feed-post"><img src="https://images.unsplash.com/photo-1494905998402-395d579af36f?auto=format&fit=crop&w=1000&q=85" alt="Car parked near mountains" /><div class="feed-post-copy"><div class="feed-meta"><span class="avatar feed-avatar feed-avatar-alt">MR</span><span><strong>Maya R.</strong><small>Auckland · 1 hr ago</small></span></div><h2>Fresh coffee in Clevedon</h2><p>“Tiny detour, excellent stop. Marked it on the route and added a loop through the valley.”</p><div class="feed-tags"><span>CLEVEDON</span><span>COFFEE STOP</span><button>♡ 8</button></div></div></article>
+        <article class="feed-post"><img src="https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1000&q=85" alt="Scenic road through green hills" /><div class="feed-post-copy"><div class="feed-meta"><span class="avatar feed-avatar feed-avatar-dark">TP</span><span><strong>Theo P.</strong><small>Whangaparāoa · 3 hrs ago</small></span></div><h2>Army Bay before the rain</h2><p>“Peninsula roads were empty this morning. The harbour side is the calmest way home.”</p><div class="feed-tags"><span>ARMY BAY</span><span>COASTAL</span><button>♡ 15</button></div></div></article>
+      </section>
+      <section class="community-pictures"><div class="section-heading compact"><div><p class="eyebrow">CAR SPOTTINGS</p><h2>Community pictures.</h2></div><a class="text-button" href="index.html#carPhotos">Add from your garage <span>↗</span></a></div><div class="community-picture-grid" id="communityPictureGrid"><div class="photo-empty">Shared garage photos will appear here.</div></div></section>
+    </main>
+    <script>
+      const communityPictureGrid = document.querySelector('#communityPictureGrid');
+      const storedUsers = JSON.parse(localStorage.getItem('veloceUsers') || '[]');
+      const sharedPhotos = storedUsers.flatMap((user) => (user.carPhotos || []).filter((photo) => photo.shared).map((photo) => ({ ...photo, owner: user.name, car: user.car?.model || 'Garage car' })));
+      if (sharedPhotos.length) {
+        communityPictureGrid.innerHTML = '';
+        sharedPhotos.forEach((photo) => {
+          const card = document.createElement('article');
+          card.className = 'community-picture-card';
+          card.innerHTML = `<img src="${photo.data}" alt="${photo.caption || 'Community car photo'}" /><div><strong>${photo.caption || 'Garage photo'}</strong><small>${photo.owner} · ${photo.car}</small></div>`;
+          communityPictureGrid.append(card);
+        });
+      }
+    </script>
+  </body>
+</html>
