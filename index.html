@@ -8,11 +8,12 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQ3R0Gk9R5e6QF4J7v1p5K4d7J5p5J4=" crossorigin="" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="hero-overrides.css" />
   </head>
   <body>
+    <div id="root"></div>
     <div class="app-shell">
       <aside class="sidebar">
         <div class="brand"><span class="brand-mark">V</span><span>veloce</span></div>
@@ -33,7 +34,7 @@
       </aside>
 
       <main class="main-content" id="discover">
-        <header class="topbar"><div class="breadcrumb">EXPLORE / <span>AUCKLAND</span></div><div class="topbar-actions"><button class="find-user-button" id="findUserButton"><span>⌕</span> Find a user</button><button class="create-account-top" id="createAccountTop">Create account <span>＋</span></button><button class="desktop-menu" aria-label="Open menu">☰</button></div></header>
+        <header class="topbar"><div class="breadcrumb">EXPLORE / <span>AUCKLAND</span></div><div class="topbar-actions"><button class="find-user-button" id="findUserButton"><span>⌕</span> Find a user</button><button class="login-top-button" id="loginTopButton">Log in</button><button class="create-account-top" id="createAccountTop">Create account <span>＋</span></button><button class="desktop-menu" aria-label="Open menu">☰</button></div></header>
         <section class="intro-row"><div><p class="eyebrow">Thursday, August 20</p><h1>Take the long way<br /><em>home.</em></h1></div><div class="intro-actions"><a class="forum-button" href="forum.html">◌ Forum</a><button class="primary-button share-button"><span>＋</span> Share a drive</button></div></section>
         <section class="hero-route" aria-label="Featured route">
           <img src="https://preview.redd.it/made-a-street-legal-nfs-most-wanted-e46-m3-gtr-replica-v0-tqyc56xo772d1.jpg?width=1080&crop=smart&auto=webp&s=853d094d35f29d952d829d711cf084838c42ed47" alt="Street legal Need for Speed Most Wanted E46 M3 GTR replica" />
@@ -227,6 +228,6 @@
     </div>
     <div class="toast" id="toast">Route saved to your drives</div>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="app.js"></script>
+    <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

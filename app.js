@@ -408,6 +408,7 @@ document.querySelector('#routeStart').addEventListener('click', () => {
 
 const loginModal = document.querySelector('#loginModal');
 const loginButton = document.querySelector('#loginButton');
+const loginTopButton = document.querySelector('#loginTopButton');
 const ownProfileButton = document.querySelector('#ownProfileButton');
 const loginForm = document.querySelector('#loginForm');
 const loginName = document.querySelector('#ownProfileButton');
@@ -503,6 +504,8 @@ loginButton.addEventListener('click', () => {
   loginModal.setAttribute('aria-hidden', 'false');
   document.querySelector('#loginEmail').focus();
 });
+
+loginTopButton.addEventListener('click', () => loginButton.click());
 
 ownProfileButton.addEventListener('click', () => {
   if (signedIn) {
@@ -600,6 +603,8 @@ function signIn(name, user = null) {
   loginName.textContent = name;
   document.querySelector('.profile-mini span').textContent = 'Auckland, NZ';
   loginButton.textContent = 'Edit profile';
+  loginButton.hidden = true;
+  loginTopButton.hidden = true;
   profileAvatar.textContent = name.split(' ').map((part) => part[0]).slice(0, 2).join('').toUpperCase();
   createAccountTop.textContent = 'Log out';
   if (user && user.car) {
@@ -626,6 +631,8 @@ function signOut() {
   document.querySelector('.profile-mini span').textContent = 'Sign in to save your drives';
   profileAvatar.textContent = '—';
   loginButton.textContent = 'Log in';
+  loginButton.hidden = false;
+  loginTopButton.hidden = false;
   createAccountTop.innerHTML = 'Create account <span>＋</span>';
   garageEntry.hidden = true;
   garageEmpty.hidden = false;
