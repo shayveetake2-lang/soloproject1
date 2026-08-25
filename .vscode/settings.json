@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^python3 -c \"\nimport subprocess, time, urllib\\.request, urllib\\.error, sys\n\nproc = subprocess\\.Popen\\(\\[sys\\.executable, 'server\\.py'\\]\\)\ntime\\.sleep\\(1\\) # wait briefly for server to bind\n\ntry:\n    with urllib\\.request\\.urlopen\\('http://localhost:8000/api/health'\\) as r:\n        print\\('HEALTH STATUS:', r\\.status\\)\n        print\\('HEALTH BODY:', r\\.read\\(\\)\\.decode\\(\\)\\)\nexcept Exception as e:\n    print\\('HEALTH ERROR:', e\\)\n\ntry:\n    # also test storage root or GET /api/storage \\(if applicable\\) or options\n    with urllib\\.request\\.urlopen\\('http://localhost:8000/api/storage'\\) as r:\n        print\\('STORAGE STATUS:', r\\.status\\)\n        print\\('STORAGE BODY:', r\\.read\\(\\)\\.decode\\(\\)\\)\nexcept Exception as e:\n    print\\('STORAGE ERROR:', e\\)\n\nproc\\.terminate\\(\\)\nproc\\.wait\\(\\)\nprint\\('SERVER STOPPED'\\)\n\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}
