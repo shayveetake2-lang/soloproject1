@@ -27,4 +27,8 @@ function ForumPage() {
 const path = window.location.pathname;
 document.querySelector('body > main')?.remove();
 document.querySelectorAll('body > .share-modal, body > .toast').forEach((element) => element.remove());
-createRoot(document.getElementById('root')).render(path.endsWith('profile.html') ? <ProfilePage /> : path.endsWith('feed.html') ? <FeedPage /> : <ForumPage />);
+const rootElement = document.getElementById('root');
+if (rootElement && !rootElement.dataset.veloceBootstrapped) {
+  rootElement.dataset.veloceBootstrapped = 'true';
+  createRoot(rootElement).render(path.endsWith('profile.html') ? <ProfilePage /> : path.endsWith('feed.html') ? <FeedPage /> : <ForumPage />);
+}

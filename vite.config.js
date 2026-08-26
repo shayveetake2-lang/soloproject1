@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import { fileURLToPath, URL } from 'node:url';
 
 export default defineConfig({
+  base: './',
   plugins: [
     react(),
     {
@@ -11,7 +12,7 @@ export default defineConfig({
         order: 'pre',
         handler(html, context) {
           if (context.path !== '/forum.html') return html;
-          return html.replace('</body>', '<script type="module" src="/src/forum-photos.js"></script></body>');
+          return html.replace('</body>', '<script type="module" src="./src/forum-photos.js"></script></body>');
         }
       }
     }

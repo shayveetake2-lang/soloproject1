@@ -5,8 +5,12 @@ import '../style.css';
 import '../hero-overrides.css';
 import App from './LegacyApp.jsx';
 
-createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+const rootElement = document.getElementById('root');
+if (rootElement && !rootElement.dataset.veloceBootstrapped) {
+  rootElement.dataset.veloceBootstrapped = 'true';
+  createRoot(rootElement).render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>
+  );
+}
