@@ -1,5 +1,5 @@
 import { storage } from './src/storage.js';
-import { getUserProfile, onSessionChanged, saveUserProfile, signIn as signInWithFirebase, signOutUser, signUpWithProfile } from './src/firebase.js';
+import { contactCodeForUser, getUserProfile, onSessionChanged, saveUserProfile, signIn as signInWithFirebase, signOutUser, signUpWithProfile } from './src/firebase.js';
 
 const toast = document.querySelector('#toast');
 let toastTimeout;
@@ -569,11 +569,15 @@ function signIn(name, user = null) {
   signedIn = true;
   currentUser = user;
   if (user) {
+    if (!user.contactCode) {
+      user.contactCode = contactCodeForUser(user.firebaseUid);
+      void saveUserProfile(user.firebaseUid, { contactCode: user.contactCode });
+    }
     localStorage.setItem('veloceSessionEmail', user.email);
     void loadRemoteStorage();
   }
   loginName.textContent = name;
-  document.querySelector('.profile-mini span').textContent = 'Auckland, NZ';
+  document.querySelector('.profile-mini span').textContent = user?.contactCode ? `Auckland, NZ · ${user.contactCode}` : 'Auckland, NZ';
   loginButton.textContent = 'Edit profile';
   loginButton.hidden = true;
   loginTopButton.hidden = true;
@@ -620,6 +624,7 @@ async function loadRemoteStorage() {
     const state = await storage.load();
     if (Array.isArray(state.veloceSavedRoutes)) savedRoutes.splice(0, savedRoutes.length, ...state.veloceSavedRoutes);
     else if (savedRoutes.length) await storage.set('veloceSavedRoutes', savedRoutes);
+    hydrateMessagingDirectory(state);
     updateSavedDrives();
   } catch (error) {
     console.warn('Firestore storage unavailable; using local data.', error);
@@ -758,6 +763,31 @@ document.querySelector('#profileFollow').addEventListener('click', () => {
 const messageModal = document.querySelector('#messageModal');
 const messageForm = document.querySelector('#messageForm');
 let messageRecipient = 'maya';
+let messagingFriends = [];
+
+function contactCodeForRecipient(recipient = messageRecipient) {
+  const button = document.querySelector(`#messagePeople [data-message-recipient="${recipient}"]`);
+  return button?.dataset.contactCode || messagingFriends.find((friend) => friend.id === recipient)?.contactCode || recipient.toUpperCase();
+}
+
+function addFriendButton(friend) {
+  if (document.querySelector(`#messagePeople [data-message-recipient="${friend.id}"]`)) return;
+  const button = document.createElement('button');
+  button.dataset.messageRecipient = friend.id;
+  button.dataset.contactCode = friend.contactCode;
+  button.innerHTML = `${friend.name} <small>${friend.location || 'Veloce driver'}</small>`;
+  button.addEventListener('click', () => openMessageInbox(friend.id));
+  document.querySelector('#messagePeople').append(button);
+}
+
+function hydrateMessagingDirectory(state) {
+  messagingFriends = Array.isArray(state.veloceFriends) ? state.veloceFriends : [];
+  messagingFriends.forEach(addFriendButton);
+  const declinedRequests = new Set(state.veloceDeclinedRequests || []);
+  document.querySelectorAll('.message-request').forEach((request) => {
+    request.hidden = declinedRequests.has(request.dataset.request) || messagingFriends.some((friend) => friend.id === request.dataset.request);
+  });
+}
 
 function closeMessageDialog() {
   messageModal.classList.remove('open');
@@ -793,12 +823,16 @@ async function renderMessages() {
   list.innerHTML = '<p class="no-messages">Loading messages...</p>';
   const messages = await loadMessages(recipient);
   if (recipient !== messageRecipient) return;
-  list.innerHTML = messages.length ? messages.map((message) => `<p class="message-bubble ${message.from === 'me' ? 'from-me' : ''}">${message.text}<small>${message.from === 'me' ? 'You' : 'Driver'} · ${message.time}</small></p>`).join('') : '<p class="no-messages">Start a conversation about a drive.</p>';
+  list.innerHTML = messages.length ? messages.map((message) => {
+    const label = message.from === 'me' ? 'You' : 'Driver';
+    const code = message.from === 'me' ? message.toCode : message.fromCode;
+    return `<p class="message-bubble ${message.from === 'me' ? 'from-me' : ''}">${message.text}<small>${label} · ${message.time}${code ? ` · ${code}` : ''}</small></p>`;
+  }).join('') : '<p class="no-messages">Start a conversation about a drive.</p>';
 }
 
 function openMessageInbox(recipient = 'maya') {
   messageRecipient = recipient;
-  const profile = profileData[recipient];
+  const profile = profileData[recipient] || messagingFriends.find((friend) => friend.id === recipient);
   document.querySelector('#messageTitle').innerHTML = `Chat with<br /><i>${profile?.name || 'Driver'}</i>`;
   void renderMessages();
   messageModal.classList.add('open');
@@ -811,18 +845,37 @@ document.querySelectorAll('#receivedList [data-message-recipient]').forEach((but
 });
 
 document.querySelectorAll('.message-request').forEach((request) => {
-  request.querySelector('.accept-request').addEventListener('click', () => {
+  request.querySelector('.accept-request').addEventListener('click', async () => {
     const name = request.querySelector('strong').textContent;
-    const friendButton = document.createElement('button');
-    friendButton.dataset.messageRecipient = request.dataset.request;
-    friendButton.innerHTML = `${name} <small>New friend</small>`;
-    friendButton.addEventListener('click', () => openMessageInbox(request.dataset.request));
-    document.querySelector('#messagePeople').append(friendButton);
+    const friend = {
+      id: request.dataset.request,
+      name,
+      location: 'New friend',
+      contactCode: request.dataset.contactCode
+    };
+    messagingFriends = [...messagingFriends.filter((item) => item.id !== friend.id), friend];
+    addFriendButton(friend);
+    try {
+      await storage.set('veloceFriends', messagingFriends);
+    } catch (error) {
+      console.warn('Could not save friend request decision.', error);
+      showToast('Could not save this friend yet.');
+      return;
+    }
     request.remove();
     openMessageInbox(request.dataset.request);
     showToast(`${name} added to your friends`);
   });
-  request.querySelector('.decline-request').addEventListener('click', () => {
+  request.querySelector('.decline-request').addEventListener('click', async () => {
+    try {
+      const state = await storage.load();
+      const declinedRequests = [...new Set([...(state.veloceDeclinedRequests || []), request.dataset.request])];
+      await storage.set('veloceDeclinedRequests', declinedRequests);
+    } catch (error) {
+      console.warn('Could not save declined request.', error);
+      showToast('Could not decline this request yet.');
+      return;
+    }
     request.remove();
     showToast('Message request declined');
   });
@@ -855,7 +908,13 @@ messageForm.addEventListener('submit', async (event) => {
   const recipient = messageRecipient;
   const storageKey = messageStorageKey(recipient);
   const messages = await loadMessages(recipient);
-  messages.push({ from: 'me', text, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
+  messages.push({
+    from: 'me',
+    fromCode: currentUser.contactCode,
+    toCode: contactCodeForRecipient(recipient),
+    text,
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  });
   localStorage.setItem(storageKey, JSON.stringify(messages));
   try {
     await storage.set(storageKey, messages);

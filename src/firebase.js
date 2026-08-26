@@ -25,6 +25,7 @@ export const db = getFirestore(app);
 export const onSessionChanged = (callback) => onAuthStateChanged(auth, callback);
 export const signIn = (email, password) => signInWithEmailAndPassword(auth, email, password);
 export const signOutUser = () => signOut(auth);
+export const contactCodeForUser = (userId) => `VEL-${userId.slice(0, 8).toUpperCase()}`;
 
 export async function getUserProfile(userId) {
   const snapshot = await getDoc(doc(db, 'users', userId));
@@ -65,6 +66,7 @@ export async function signUpWithProfile({ email, password, name, username, locat
     name,
     username: username.toLowerCase(),
     location,
+    contactCode: contactCodeForUser(credential.user.uid),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   };
