@@ -106,17 +106,30 @@ export async function addCarToGarage(userId, carData) {
 
 export async function signUpWithProfile({ email, password, name, username, location = 'Auckland, NZ' }) {
   const credential = await createUserWithEmailAndPassword(auth, email, password);
-  const profile = {
+  const uid = credential.user.uid;
+  const contactCode = contactCodeForUser(uid);
+
+  // Firestore doc includes server timestamps; the plain object does not
+  // (server timestamps can't be serialised to JSON / localStorage)
+  const profileForDb = {
     email: credential.user.email,
     name,
     username: username.toLowerCase(),
     location,
-    contactCode: contactCodeForUser(credential.user.uid),
+    contactCode,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   };
 
-  await setDoc(doc(db, 'users', credential.user.uid), profile);
-  await saveMessageAddress({ ...profile, firebaseUid: credential.user.uid });
-  return { user: credential.user, profile };
+  const profilePlain = {
+    email: credential.user.email,
+    name,
+    username: username.toLowerCase(),
+    location,
+    contactCode
+  };
+
+  await setDoc(doc(db, 'users', uid), profileForDb);
+  await saveMessageAddress({ ...profilePlain, firebaseUid: uid });
+  return { user: credential.user, profile: profilePlain };
 }

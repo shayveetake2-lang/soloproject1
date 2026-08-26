@@ -749,7 +749,9 @@ signupForm.addEventListener('submit', async (event) => {
   const password = document.querySelector('#signupPassword').value;
   try {
     const { user: firebaseUser, profile } = await signUpWithProfile({ email, password, name, username });
-    const user = { ...profile, firebaseUid: firebaseUser.uid, car: null, carPhotos: [], savedRuns: [] };
+    // Strip Firestore sentinel values (serverTimestamp) before storing in localStorage
+    const { createdAt: _c, updatedAt: _u, ...safeProfile } = profile;
+    const user = { ...safeProfile, firebaseUid: firebaseUser.uid, car: null, carPhotos: [], savedRuns: [] };
     await saveUserProfile(firebaseUser.uid, user);
     users.splice(0, users.length, user);
     localStorage.setItem('veloceUsers', JSON.stringify(users));
@@ -758,7 +760,14 @@ signupForm.addEventListener('submit', async (event) => {
     signupForm.reset();
     showToast(`Welcome to Veloce, ${name}`);
   } catch (error) {
-    showToast('Could not create that account. Try a different email.');
+    if (error.code === 'auth/email-already-in-use') {
+      showToast('That email is already registered. Try logging in.');
+    } else if (error.code === 'auth/weak-password') {
+      showToast('Password must be at least 6 characters.');
+    } else {
+      showToast('Could not create that account. Try again.');
+      console.error('Signup error:', error);
+    }
   }
 });
 
