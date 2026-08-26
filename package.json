@@ -8,7 +8,7 @@
     "build": "vite build",
     "check": "npm run build",
     "preview": "vite preview",
-    "deploy": "wrangler pages deploy",
+    "deploy": "npx wrangler pages deploy",
     "deploy:pages": "npx wrangler pages deploy dist --project-name veloce --branch main --commit-dirty=true"
   },
   "dependencies": {
