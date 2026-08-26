@@ -876,11 +876,6 @@ document.querySelectorAll('.user-row').forEach((user) => {
 });
 
 const profileModal = document.querySelector('#profileModal');
-const profileData = {
-  maya: { name: 'Maya R.', initials: 'MR', location: 'Auckland, NZ', car: '2001 BMW M3 E46', drives: '18', km: '1,204', roads: ['Waitākere West', 'Huia Road', 'Piha Road'] },
-  jordan: { name: 'Jordan K.', initials: 'JK', location: 'North Shore, NZ', car: '2018 Subaru BRZ', drives: '32', km: '2,486', roads: ['Albany to Orewa', 'Coatesville Riverhead', 'Dairy Flat'] },
-  theo: { name: 'Theo P.', initials: 'TP', location: 'Whangaparāoa, NZ', car: '1999 Mazda MX-5 NB', drives: '9', km: '742', roads: ['Peninsula Coastal Run', 'Stillwater', 'Army Bay'] }
-};
 
 function closeProfileDialog() {
   profileModal.classList.remove('open');
@@ -891,40 +886,25 @@ document.querySelectorAll('[data-close-profile]').forEach((button) => {
   button.addEventListener('click', closeProfileDialog);
 });
 
-document.querySelectorAll('[data-profile]').forEach((nameButton) => {
-  nameButton.addEventListener('click', (event) => {
-    event.stopPropagation();
-    const profile = profileData[nameButton.dataset.profile];
-    document.querySelector('#profileAvatar').textContent = profile.initials;
-    document.querySelector('#profileTitle').textContent = profile.name;
-    document.querySelector('#profileLocation').textContent = profile.location;
-    document.querySelector('#profileCar').textContent = profile.car;
-    document.querySelector('#profileDrives').textContent = profile.drives;
-    document.querySelector('#profileKm').textContent = profile.km;
-    document.querySelector('#profileRoads').innerHTML = profile.roads.map((road) => `<span>${road}</span>`).join('');
-    const profileFollow = document.querySelector('#profileFollow');
-    profileFollow.dataset.following = profileFollow.dataset.profile === nameButton.dataset.profile && profileFollow.dataset.following === 'true' ? 'true' : 'false';
-    profileFollow.dataset.profile = nameButton.dataset.profile;
-    profileFollow.innerHTML = `${profileFollow.dataset.following === 'true' ? 'Following' : 'Follow'} ${profile.name} <span>${profileFollow.dataset.following === 'true' ? '✓' : '＋'}</span>`;
-    profileModal.classList.add('open');
-    profileModal.setAttribute('aria-hidden', 'false');
-  });
-});
-
-document.querySelector('#profileFollow').addEventListener('click', () => {
-  const profileFollow = document.querySelector('#profileFollow');
-  const profileName = document.querySelector('#profileTitle').textContent;
-  const isFollowing = profileFollow.dataset.following === 'true';
-  profileFollow.dataset.following = String(!isFollowing);
-  profileFollow.innerHTML = `${!isFollowing ? 'Following' : 'Follow'} ${profileName} <span>${!isFollowing ? '✓' : '＋'}</span>`;
-  showToast(isFollowing ? `Unfollowed ${profileName}` : `Now following ${profileName}`);
+document.querySelector('#profileMessage').addEventListener('click', () => {
+  if (!signedIn) {
+    closeProfileDialog();
+    loginButton.click();
+    showToast('Sign in to message drivers');
+    return;
+  }
+  const contactCode = document.querySelector('#profileFollow').dataset.profile;
+  if (contactCode) {
+    closeProfileDialog();
+    openMessageInbox(contactCode, { contactCode, name: document.querySelector('#profileTitle').textContent });
+  }
 });
 
 const messageModal = document.querySelector('#messageModal');
 const messageForm = document.querySelector('#messageForm');
 const messageDriverSearch = document.querySelector('#messageDriverSearch');
 const messageDriverResults = document.querySelector('#messageDriverResults');
-let messageRecipient = 'maya';
+let messageRecipient = '';
 let messagingFriends = [];
 
 function contactCodeForRecipient(recipient = messageRecipient) {
@@ -1022,9 +1002,9 @@ async function renderMessages() {
   }).join('') : '<p class="no-messages">Start a conversation about a drive.</p>';
 }
 
-function openMessageInbox(recipient = 'maya', driver = null) {
+function openMessageInbox(recipient = '', driver = null) {
   messageRecipient = recipient;
-  activeMessageDriver = driver || profileData[recipient] || messagingFriends.find((friend) => friend.id === recipient);
+  activeMessageDriver = driver || messagingFriends.find((friend) => friend.id === recipient);
   const profile = activeMessageDriver;
   document.querySelector('#messageTitle').innerHTML = `Chat with<br /><i>${profile?.name || 'Driver'}</i>`;
   document.querySelector('#messageRecipientCode').value = contactCodeForRecipient(recipient);
@@ -1095,15 +1075,6 @@ document.querySelectorAll('[data-message-recipient]').forEach((button) => {
 });
 
 document.querySelectorAll('[data-close-message]').forEach((button) => button.addEventListener('click', closeMessageDialog));
-document.querySelector('#profileMessage').addEventListener('click', () => {
-  if (!signedIn) {
-    closeProfileDialog();
-    loginButton.click();
-    showToast('Sign in to message drivers');
-    return;
-  }
-  openMessageInbox(document.querySelector('#profileFollow').dataset.profile || 'maya');
-});
 
 messageForm.addEventListener('submit', async (event) => {
   event.preventDefault();

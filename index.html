@@ -138,11 +138,7 @@
         <h2 id="userTitle">Find a<br /><i>driver.</i></h2>
         <div class="user-search"><span>⌕</span><input id="userSearch" type="search" placeholder="Search by name, @username, email or contact code" /></div>
         <div class="user-list" id="driverSearchResults"></div>
-        <div class="user-list" id="userList">
-          <div class="user-row" data-user="Maya R. Auckland"><span class="avatar user-avatar">MR</span><span><button class="user-name" data-profile="maya">Maya R.</button><small>Auckland · 18 drives</small></span><button class="follow-label">Follow</button></div>
-          <div class="user-row" data-user="Jordan K. North Shore"><span class="avatar user-avatar user-avatar-alt">JK</span><span><button class="user-name" data-profile="jordan">Jordan K.</button><small>North Shore · 32 drives</small></span><button class="follow-label">Follow</button></div>
-          <div class="user-row" data-user="Theo P. Whangaparaoa"><span class="avatar user-avatar user-avatar-dark">TP</span><span><button class="user-name" data-profile="theo">Theo P.</button><small>Whangaparāoa · 9 drives</small></span><button class="follow-label">Follow</button></div>
-        </div>
+        <div class="user-list" id="userList"></div>
         <p class="no-users" id="noUsers">No drivers found in your area.</p>
       </section>
     </div>
@@ -166,10 +162,10 @@
       <div class="share-backdrop" data-close-profile></div>
       <section class="saved-dialog account-dialog profile-dialog" role="dialog" aria-modal="true" aria-labelledby="profileTitle">
         <button class="share-close" data-close-profile aria-label="Close driver profile">×</button>
-        <div class="profile-hero"><span class="avatar profile-avatar" id="profileAvatar">MR</span><div><p class="eyebrow">VELOCE DRIVER</p><h2 id="profileTitle">Maya R.</h2><span class="profile-location" id="profileLocation">Auckland, NZ</span><span class="profile-car" id="profileCar">2001 BMW M3 E46</span></div></div>
-        <div class="profile-stats"><div><strong id="profileDrives">18</strong><span>DRIVES</span></div><div><strong id="profileKm">1,204</strong><span>KM EXPLORED</span></div><div><strong>4</strong><span>ROUTES SHARED</span></div></div>
-        <p class="eyebrow">FAVOURITE DRIVES</p><div class="profile-roads" id="profileRoads"><span>Waitākere West</span><span>Huia Road</span><span>Piha Road</span></div>
-        <button class="route-start profile-follow" id="profileFollow">Follow Maya R. <span>＋</span></button>
+        <div class="profile-hero"><span class="avatar profile-avatar" id="profileAvatar">—</span><div><p class="eyebrow">VELOCE DRIVER</p><h2 id="profileTitle">Driver</h2><span class="profile-location" id="profileLocation"></span><span class="profile-car" id="profileCar"></span></div></div>
+        <div class="profile-stats"><div><strong id="profileDrives">—</strong><span>DRIVES</span></div><div><strong id="profileKm">—</strong><span>KM EXPLORED</span></div><div><strong>—</strong><span>ROUTES SHARED</span></div></div>
+        <p class="eyebrow">FAVOURITE DRIVES</p><div class="profile-roads" id="profileRoads"></div>
+        <button class="route-start profile-follow" id="profileFollow">Message driver <span>✉</span></button>
         <button class="profile-message" id="profileMessage">Message driver <span>↗</span></button>
       </section>
     </div>
