@@ -472,31 +472,6 @@ function updateSavedDrives() {
   });
 }
 
-function renderCarPhotos() {
-  const grid = document.querySelector('#carPhotoGrid');
-  const empty = document.querySelector('#photoEmpty');
-  grid.querySelectorAll('.car-photo-card').forEach((card) => card.remove());
-  const photos = currentUser?.carPhotos || [];
-  empty.hidden = photos.length > 0;
-  photos.forEach((photo, index) => {
-    const card = document.createElement('article');
-    card.className = 'car-photo-card';
-    card.innerHTML = `<img src="${photo.data}" alt="${photo.caption || 'Car photo'}" /><div><strong>${photo.caption || 'Garage photo'}</strong><span class="photo-actions"><button type="button" class="share-photo-button" aria-label="Share photo">${photo.shared ? 'Shared' : 'Share'}</button><button type="button" data-photo-index="${index}" aria-label="Remove photo">×</button></span></div>`;
-    card.querySelector('.share-photo-button').addEventListener('click', () => {
-      photo.shared = !photo.shared;
-      saveUsers();
-      renderCarPhotos();
-      showToast(photo.shared ? 'Photo shared with the community' : 'Photo removed from community');
-    });
-    card.querySelector('button').addEventListener('click', () => {
-      currentUser.carPhotos.splice(index, 1);
-      saveUsers();
-      renderCarPhotos();
-    });
-    grid.append(card);
-  });
-}
-
 function closeLoginDialog() {
   loginModal.classList.remove('open');
   loginModal.setAttribute('aria-hidden', 'true');
@@ -614,7 +589,6 @@ function signIn(name, user = null) {
     garageEmpty.hidden = false;
     garageEmpty.textContent = 'Add a car to your garage.';
   }
-  renderCarPhotos();
   renderSavedRuns();
   updateSavedDrives();
   document.querySelector('#messagesButton').hidden = false;
@@ -637,8 +611,6 @@ function signOut() {
   garageEmpty.textContent = 'Sign in or add a car to your garage.';
   savedDrivesButton.hidden = true;
   document.querySelector('#messagesButton').hidden = true;
-  document.querySelector('#carPhotoGrid').querySelectorAll('.car-photo-card').forEach((card) => card.remove());
-  document.querySelector('#photoEmpty').hidden = false;
   renderSavedRuns();
   showToast('You have been logged out');
 }
@@ -696,35 +668,6 @@ signupForm.addEventListener('submit', async (event) => {
   }
 });
 
-const addPhotoButton = document.querySelector('#addPhotoButton');
-const carPhotoInput = document.querySelector('#carPhotoInput');
-
-addPhotoButton.addEventListener('click', () => {
-  if (!signedIn || !currentUser) {
-    loginModal.classList.add('open');
-    loginModal.setAttribute('aria-hidden', 'false');
-    document.querySelector('#loginEmail').focus();
-    showToast('Sign in to add car photos');
-    return;
-  }
-  carPhotoInput.click();
-});
-
-carPhotoInput.addEventListener('change', () => {
-  const file = carPhotoInput.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.addEventListener('load', () => {
-    const caption = window.prompt('Add a caption for this photo', 'My car on the road');
-    currentUser.carPhotos = currentUser.carPhotos || [];
-    currentUser.carPhotos.push({ data: reader.result, caption: caption || 'Garage photo' });
-    saveUsers();
-    renderCarPhotos();
-    carPhotoInput.value = '';
-    showToast('Car photo added to your garage');
-  });
-  reader.readAsDataURL(file);
-});
 
 const userModal = document.querySelector('#userModal');
 const findUserButton = document.querySelector('#findUserButton');

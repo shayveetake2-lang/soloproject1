@@ -20,6 +20,7 @@
     <script type="module">
       import { auth, getUserProfile, onSessionChanged, saveUserProfile } from './src/firebase.js';
 
+      async function initializeProfile() {
       const firebaseUser = await new Promise((resolve) => {
         const unsubscribe = onSessionChanged((user) => {
           unsubscribe();
@@ -57,6 +58,9 @@
         toast.classList.add('show');
         setTimeout(() => { window.location.href = 'index.html'; }, 700);
       });
+      }
+
+      initializeProfile();
     </script>
   </body>
 </html>

@@ -5,10 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:api": "set -a && . ./.env && set +a && ./.venv/bin/python server.py",
-    "setup:python": "./.venv/bin/python -m pip install -r requirements.txt",
     "build": "vite build",
-    "check": "npm run build && ./.venv/bin/python -m py_compile server.py",
+    "check": "npm run build",
     "preview": "vite preview"
   },
   "dependencies": {

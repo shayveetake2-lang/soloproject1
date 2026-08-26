@@ -6,7 +6,6 @@
 2. Open **Build > Firestore Database**, choose **Create database**, select a region, and start in **Test mode** while developing. Replace the test rules before deployment.
 3. Open **Build > Authentication > Sign-in method**, enable **Email/Password**, and save.
 4. Open **Project settings > General > Your apps**. Add a Web app if one does not exist, then copy its Firebase configuration values.
-5. Open **Project settings > Service accounts**, choose **Generate new private key**, and save the downloaded file in this project as `firebase-service-account.json`. Keep it private.
 
 ## Configure this project
 
@@ -16,8 +15,7 @@
    cp .env.example .env
    ```
 
-2. Open `.env` and fill `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_MESSAGING_SENDER_ID`, and `VITE_FIREBASE_APP_ID` from the Web app configuration. The `veloce-b89bf` values already in the template are correct. Leave `FIREBASE_SERVICE_ACCOUNT=./firebase-service-account.json` unchanged.
-3. Verify that `firebase-service-account.json` is in the project root. Both `.env` and this private key are ignored by Git.
+2. Open `.env` and fill `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_MESSAGING_SENDER_ID`, and `VITE_FIREBASE_APP_ID` from the Web app configuration. The `veloce-b89bf` values already in the template are correct.
 
 ## Start locally
 
@@ -27,27 +25,13 @@
    npm install
    ```
 
-2. Install the Python API packages once:
-
-   ```sh
-   npm run setup:python
-   ```
-
-3. Start the Firestore API in the first terminal:
-
-   ```sh
-   npm run dev:api
-   ```
-
-   Wait for `Veloce Firestore server running at http://localhost:8000`.
-
-4. Start Vite in a second terminal:
+2. Start Vite:
 
    ```sh
    npm run dev
    ```
 
-5. Open the localhost URL Vite prints, normally `http://localhost:5173`.
+3. Open the localhost URL Vite prints, normally `http://localhost:5173`.
 
 ## Verify
 
@@ -57,11 +41,11 @@ Run this before committing or deploying:
 npm run check
 ```
 
-The deployed interface uses Firebase Authentication and Firestore directly. `server.py` is kept only for local backward compatibility and is not required by Cloudflare Pages. `src/firebase.js` contains the browser Firebase helpers: `addCarToGarage(userId, carData)` creates `users/{userId}/garage/{carId}`, and `signUpWithProfile(...)` creates an Email/Password account plus its `users/{userId}` profile document.
+The interface uses Firebase Authentication and Firestore directly. `src/firebase.js` contains the browser Firebase helpers: `addCarToGarage(userId, carData)` creates `users/{userId}/garage/{carId}`, and `signUpWithProfile(...)` creates an Email/Password account plus its `users/{userId}` profile document.
 
 ## Cloudflare Pages deployment
 
-The deployed app uses Firebase Authentication and direct per-user Firestore documents. It does not require `server.py` or `npm run dev:api`.
+The deployed app uses Firebase Authentication and direct per-user Firestore documents. Forum photos are public image URLs stored in Firestore; the source image must already be hosted at a public URL.
 
 1. In the Firebase console, open **Firestore Database > Rules**, replace the rules with the contents of `firestore.rules`, then publish them.
 2. In Cloudflare, go to **Workers & Pages > Create > Pages > Connect to Git** and select this GitHub repository.

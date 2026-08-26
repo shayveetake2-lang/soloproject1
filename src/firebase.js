@@ -22,7 +22,7 @@ const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
 export const db = getFirestore(app);
-export const onSessionChanged = onAuthStateChanged;
+export const onSessionChanged = (callback) => onAuthStateChanged(auth, callback);
 export const signIn = (email, password) => signInWithEmailAndPassword(auth, email, password);
 export const signOutUser = () => signOut(auth);
 
@@ -33,6 +33,20 @@ export async function getUserProfile(userId) {
 
 export async function saveUserProfile(userId, profile) {
   await setDoc(doc(db, 'users', userId), { ...profile, updatedAt: serverTimestamp() }, { merge: true });
+}
+
+export async function createForumPhoto({ user, imageUrl, caption }) {
+  const parsedUrl = new URL(imageUrl);
+  if (!['http:', 'https:'].includes(parsedUrl.protocol)) throw new Error('Use a public http or https image URL.');
+  const id = crypto.randomUUID();
+  await setDoc(doc(db, 'forumPhotos', id), {
+    authorId: user.uid,
+    authorName: user.displayName || user.email,
+    caption: caption || 'Shared from Veloce',
+    imageUrl: parsedUrl.href,
+    createdAt: serverTimestamp()
+  });
+  return id;
 }
 
 export async function addCarToGarage(userId, carData) {
