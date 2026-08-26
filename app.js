@@ -1,5 +1,5 @@
 import { storage } from './src/storage.js';
-import { contactCodeForUser, deliverMessageByCode, getDirectInbox, getUserProfile, onSessionChanged, saveMessageAddress, saveUserProfile, signIn as signInWithFirebase, signOutUser, signUpWithProfile, subscribeToDirectInbox } from './src/firebase.js';
+import { contactCodeForUser, deliverMessageByCode, getDirectInbox, getUserProfile, onSessionChanged, saveMessageAddress, saveUserProfile, signIn as signInWithFirebase, signOutUser, signUpWithProfile } from './src/firebase.js';
 
 const toast = document.querySelector('#toast');
 let toastTimeout;
@@ -423,7 +423,7 @@ const storedUsers = localStorage.getItem('veloceUsers');
 const users = storedUsers ? JSON.parse(storedUsers) : [];
 let signedIn = false;
 let currentUser = null;
-let unsubscribeInbox;
+let inboxRefreshTimer;
 
 function saveUsers() {
   localStorage.setItem('veloceUsers', JSON.stringify(users));
@@ -577,19 +577,8 @@ function signIn(name, user = null) {
     void saveMessageAddress(user);
     localStorage.setItem('veloceSessionEmail', user.email);
     void loadRemoteStorage();
-    unsubscribeInbox?.();
-    unsubscribeInbox = subscribeToDirectInbox(
-      user.firebaseUid,
-      async (inbox) => {
-        if (currentUser?.firebaseUid !== user.firebaseUid) return;
-        try {
-          await syncDirectInbox(await storage.load(), inbox);
-        } catch (error) {
-          console.warn('Could not sync incoming messages.', error);
-        }
-      },
-      (error) => console.warn('Could not watch incoming messages.', error)
-    );
+    clearInterval(inboxRefreshTimer);
+    inboxRefreshTimer = setInterval(() => void refreshDirectInbox(), 15000);
   }
   loginName.textContent = name;
   document.querySelector('.profile-mini span').textContent = user?.contactCode ? `Auckland, NZ · ${user.contactCode}` : 'Auckland, NZ';
@@ -616,8 +605,8 @@ function signIn(name, user = null) {
 function signOut() {
   signedIn = false;
   currentUser = null;
-  unsubscribeInbox?.();
-  unsubscribeInbox = undefined;
+  clearInterval(inboxRefreshTimer);
+  inboxRefreshTimer = undefined;
   localStorage.removeItem('veloceSessionEmail');
   void signOutUser();
   loginName.textContent = 'Not signed in';
@@ -642,13 +631,23 @@ async function loadRemoteStorage() {
     if (Array.isArray(state.veloceSavedRoutes)) savedRoutes.splice(0, savedRoutes.length, ...state.veloceSavedRoutes);
     else if (savedRoutes.length) await storage.set('veloceSavedRoutes', savedRoutes);
     hydrateMessagingDirectory(state);
-    const inbox = await getDirectInbox(currentUser.firebaseUid);
-    await syncDirectInbox(state, inbox);
+    await refreshDirectInbox(state);
     updateSavedDrives();
   } catch (error) {
     console.warn('Firestore storage unavailable; using local data.', error);
   }
 }
+
+async function refreshDirectInbox(state) {
+  if (!currentUser?.firebaseUid) return;
+  const inboxState = state || await storage.load();
+  const inbox = await getDirectInbox(currentUser.firebaseUid);
+  await syncDirectInbox(inboxState, inbox);
+}
+
+window.addEventListener('focus', () => {
+  if (signedIn) void refreshDirectInbox();
+});
 
 onSessionChanged(async (firebaseUser) => {
   if (!firebaseUser) return;
@@ -885,6 +884,7 @@ function openMessageInbox(recipient = 'maya') {
   document.querySelector('#messageTitle').innerHTML = `Chat with<br /><i>${profile?.name || 'Driver'}</i>`;
   document.querySelector('#messageRecipientCode').value = contactCodeForRecipient(recipient);
   void renderMessages();
+  void refreshDirectInbox().then(() => renderMessages());
   messageModal.classList.add('open');
   messageModal.setAttribute('aria-hidden', 'false');
   document.querySelector('#messageInput').focus();
