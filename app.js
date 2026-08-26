@@ -200,8 +200,8 @@ garageLink.addEventListener('click', (event) => {
   const serviceList = document.querySelector('#serviceHistoryList');
   const nextReminder = document.querySelector('#nextServiceReminder');
   nextReminder.hidden = !car.nextService;
-  if (car.nextService) nextReminder.innerHTML = `<p class="eyebrow">UP NEXT</p><strong>${car.nextService.task}</strong><span>Due at ${car.nextService.dueKm} km</span>`;
-  serviceList.innerHTML = car.serviceHistory?.length ? car.serviceHistory.slice().reverse().map((service) => `<div class="service-record"><strong>${service.name || service.note}</strong><span>${service.date} · ${service.odometer || 'Odometer not recorded'} km</span><small>${service.note || ''}</small></div>`).join('') : '<span class="no-service">No service records yet.</span>';
+  if (car.nextService) nextReminder.innerHTML = `<p class="eyebrow">UP NEXT</p><strong>${escapeHtml(car.nextService.task)}</strong><span>Due at ${escapeHtml(car.nextService.dueKm)} km</span>`;
+  serviceList.innerHTML = car.serviceHistory?.length ? car.serviceHistory.slice().reverse().map((service) => `<div class="service-record"><strong>${escapeHtml(service.name || service.note)}</strong><span>${escapeHtml(service.date)} · ${escapeHtml(service.odometer || 'Odometer not recorded')} km</span><small>${escapeHtml(service.note || '')}</small></div>`).join('') : '<span class="no-service">No service records yet.</span>';
   carInfoModal.classList.add('open');
   carInfoModal.setAttribute('aria-hidden', 'false');
 });
@@ -807,7 +807,7 @@ async function openProfileFromDriver(driver) {
   const profileFollow = document.querySelector('#profileFollow');
   profileFollow.dataset.profile = driver.contactCode;
   profileFollow.dataset.following = 'false';
-  profileFollow.innerHTML = `Message ${driver.name || 'driver'} <span>✉</span>`;
+  profileFollow.innerHTML = `${escapeHtml(driver.name || 'driver')} <span>✉</span>`;
   profileFollow.onclick = () => {
     closeProfileDialog();
     openMessageInbox(driver.contactCode, driver);
@@ -917,7 +917,7 @@ function addFriendButton(friend) {
   const button = document.createElement('button');
   button.dataset.messageRecipient = friend.id;
   button.dataset.contactCode = friend.contactCode;
-  button.innerHTML = `${friend.name} <small>${friend.location || 'Veloce driver'}</small>`;
+  button.innerHTML = `${escapeHtml(friend.name)} <small>${escapeHtml(friend.location || 'Veloce driver')}</small>`;
   button.addEventListener('click', () => openMessageInbox(friend.id));
   document.querySelector('#messagePeople').append(button);
 }
@@ -1005,7 +1005,7 @@ async function renderMessages() {
 function openMessageInbox(recipient = '', driver = null) {
   messageRecipient = recipient;
   const profile = driver || messagingFriends.find((friend) => friend.id === recipient);
-  document.querySelector('#messageTitle').innerHTML = `Chat with<br /><i>${profile?.name || 'Driver'}</i>`;
+  document.querySelector('#messageTitle').innerHTML = `Chat with<br /><i>${escapeHtml(profile?.name || 'Driver')}</i>`;
   document.querySelector('#messageRecipientCode').value = contactCodeForRecipient(recipient);
   void renderMessages();
   void refreshDirectInbox().then(() => renderMessages());
