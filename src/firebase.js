@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { createUserWithEmailAndPassword, getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { addDoc, collection, doc, getDoc, getDocs, getFirestore, orderBy, query, serverTimestamp, setDoc } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, getDocs, getFirestore, onSnapshot, orderBy, query, serverTimestamp, setDoc } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -64,6 +64,14 @@ export async function deliverMessageByCode({ sender, recipientCode, text }) {
 export async function getDirectInbox(userId) {
   const snapshot = await getDocs(query(collection(db, 'users', userId, 'inbox'), orderBy('sentAt', 'desc')));
   return snapshot.docs.map((message) => ({ id: message.id, ...message.data() }));
+}
+
+export function subscribeToDirectInbox(userId, callback, onError) {
+  return onSnapshot(
+    query(collection(db, 'users', userId, 'inbox'), orderBy('sentAt', 'desc')),
+    (snapshot) => callback(snapshot.docs.map((message) => ({ id: message.id, ...message.data() }))),
+    onError
+  );
 }
 
 export async function createForumPhoto({ user, imageUrl, caption }) {

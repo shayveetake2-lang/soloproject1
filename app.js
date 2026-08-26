@@ -1,5 +1,5 @@
 import { storage } from './src/storage.js';
-import { contactCodeForUser, deliverMessageByCode, getDirectInbox, getUserProfile, onSessionChanged, saveMessageAddress, saveUserProfile, signIn as signInWithFirebase, signOutUser, signUpWithProfile } from './src/firebase.js';
+import { contactCodeForUser, deliverMessageByCode, getDirectInbox, getUserProfile, onSessionChanged, saveMessageAddress, saveUserProfile, signIn as signInWithFirebase, signOutUser, signUpWithProfile, subscribeToDirectInbox } from './src/firebase.js';
 
 const toast = document.querySelector('#toast');
 let toastTimeout;
@@ -423,6 +423,7 @@ const storedUsers = localStorage.getItem('veloceUsers');
 const users = storedUsers ? JSON.parse(storedUsers) : [];
 let signedIn = false;
 let currentUser = null;
+let unsubscribeInbox;
 
 function saveUsers() {
   localStorage.setItem('veloceUsers', JSON.stringify(users));
@@ -576,6 +577,19 @@ function signIn(name, user = null) {
     void saveMessageAddress(user);
     localStorage.setItem('veloceSessionEmail', user.email);
     void loadRemoteStorage();
+    unsubscribeInbox?.();
+    unsubscribeInbox = subscribeToDirectInbox(
+      user.firebaseUid,
+      async (inbox) => {
+        if (currentUser?.firebaseUid !== user.firebaseUid) return;
+        try {
+          await syncDirectInbox(await storage.load(), inbox);
+        } catch (error) {
+          console.warn('Could not sync incoming messages.', error);
+        }
+      },
+      (error) => console.warn('Could not watch incoming messages.', error)
+    );
   }
   loginName.textContent = name;
   document.querySelector('.profile-mini span').textContent = user?.contactCode ? `Auckland, NZ · ${user.contactCode}` : 'Auckland, NZ';
@@ -602,6 +616,8 @@ function signIn(name, user = null) {
 function signOut() {
   signedIn = false;
   currentUser = null;
+  unsubscribeInbox?.();
+  unsubscribeInbox = undefined;
   localStorage.removeItem('veloceSessionEmail');
   void signOutUser();
   loginName.textContent = 'Not signed in';
