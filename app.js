@@ -776,12 +776,44 @@ function renderDriverResults(container, drivers, onSelect) {
     const row = document.createElement('button');
     row.className = 'user-row';
     const initials = (driver.name || 'V').split(' ').map((part) => part[0]).slice(0, 2).join('').toUpperCase();
-    row.innerHTML = `<span class="avatar user-avatar">${initials}</span><span><strong></strong><small></small></span><span class="follow-label">Message</span>`;
+    row.innerHTML = `<span class="avatar user-avatar">${initials}</span><span><strong></strong><small></small></span><span class="follow-label">View profile</span>`;
     row.querySelector('strong').textContent = driver.name || driver.username || 'Veloce driver';
     row.querySelector('small').textContent = `${driver.username ? `@${driver.username} · ` : ''}${driver.contactCode}`;
     row.addEventListener('click', () => onSelect(driver));
     container.append(row);
   });
+}
+
+async function openProfileFromDriver(driver) {
+  closeUserDialog();
+  document.querySelector('#profileAvatar').textContent = (driver.name || 'V').split(' ').map((part) => part[0]).slice(0, 2).join('').toUpperCase();
+  document.querySelector('#profileTitle').textContent = driver.name || driver.username || 'Veloce driver';
+  document.querySelector('#profileLocation').textContent = driver.location || 'Veloce community';
+  document.querySelector('#profileCar').textContent = '';
+  document.querySelector('#profileDrives').textContent = '—';
+  document.querySelector('#profileKm').textContent = '—';
+  document.querySelector('#profileRoads').innerHTML = '';
+
+  const profileFollow = document.querySelector('#profileFollow');
+  profileFollow.dataset.profile = driver.contactCode;
+  profileFollow.dataset.following = 'false';
+  profileFollow.innerHTML = `Message ${driver.name || 'driver'} <span>✉</span>`;
+  profileFollow.onclick = () => {
+    closeProfileDialog();
+    openMessageInbox(driver.contactCode, driver);
+  };
+
+  profileModal.classList.add('open');
+  profileModal.setAttribute('aria-hidden', 'false');
+
+  try {
+    const fullProfile = await getUserProfile(driver.uid);
+    if (fullProfile) {
+      if (fullProfile.car) {
+        document.querySelector('#profileCar').textContent = [fullProfile.car.year, fullProfile.car.make, fullProfile.car.model].filter(Boolean).join(' ') || fullProfile.car.model || '';
+      }
+    }
+  } catch { /* profile details are best-effort */ }
 }
 
 async function searchDrivers(searchText, container, onSelect) {
@@ -813,18 +845,21 @@ document.querySelectorAll('[data-close-user]').forEach((button) => {
 
 userSearch.addEventListener('input', () => {
   const query = userSearch.value.toLowerCase().trim();
-  let visibleUsers = 0;
-  document.querySelectorAll('.user-row').forEach((user) => {
-    const matches = user.dataset.user.toLowerCase().includes(query);
+  // hide the hardcoded static rows while a live search is active
+  document.querySelectorAll('#userList .user-row').forEach((user) => {
+    const matches = !query || user.dataset.user.toLowerCase().includes(query);
     user.hidden = !matches;
-    if (matches) visibleUsers += 1;
   });
-  noUsers.classList.toggle('visible', visibleUsers === 0);
+  if (!query) {
+    noUsers.classList.remove('visible');
+    driverSearchResults.innerHTML = '';
+    return;
+  }
   void searchDrivers(query, driverSearchResults, (driver) => {
-    closeUserDialog();
-    openMessageInbox(driver.contactCode, driver);
+    openProfileFromDriver(driver);
   }).then((drivers) => {
-    noUsers.classList.toggle('visible', query.length > 0 && visibleUsers === 0 && drivers.length === 0);
+    const staticVisible = [...document.querySelectorAll('#userList .user-row')].some((row) => !row.hidden);
+    noUsers.classList.toggle('visible', drivers.length === 0 && !staticVisible);
   }).catch(() => {
     noUsers.classList.toggle('visible', true);
   });

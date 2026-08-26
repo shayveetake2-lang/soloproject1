@@ -43,6 +43,7 @@ export async function saveMessageAddress(user) {
     uid: userId,
     name: user.name || user.displayName || user.email || 'Veloce driver',
     username: user.username || '',
+    email: user.email || '',
     location: user.location || '',
     contactCode: user.contactCode
   }, { merge: true });
@@ -54,7 +55,7 @@ export async function findDrivers(searchText) {
   const snapshot = await getDocs(collection(db, 'messageAddresses'));
   return snapshot.docs
     .map((driver) => driver.data())
-    .filter((driver) => [driver.name, driver.username, driver.contactCode, driver.location]
+    .filter((driver) => [driver.name, driver.username, driver.contactCode, driver.location, driver.email]
       .some((value) => value?.toLowerCase().includes(normalizedQuery)))
     .slice(0, 8);
 }
