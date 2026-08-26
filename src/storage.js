@@ -1,20 +1,20 @@
-const endpoint = '/api/storage';
+import { auth, db } from './firebase.js';
+import { deleteField, doc, getDoc, setDoc } from 'firebase/firestore';
+
+function getStateDocument() {
+  if (!auth.currentUser) throw new Error('Sign in before accessing your saved data.');
+  return doc(db, 'users', auth.currentUser.uid, 'private', 'state');
+}
 
 export const storage = {
   async load() {
-    const response = await fetch(endpoint);
-    if (!response.ok) throw new Error('Database unavailable');
-    return response.json();
+    const snapshot = await getDoc(getStateDocument());
+    return snapshot.exists() ? snapshot.data() : {};
   },
   async set(key, value) {
-    const response = await fetch(endpoint, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key, value })
-    });
-    if (!response.ok) throw new Error('Could not save data');
+    await setDoc(getStateDocument(), { [key]: value }, { merge: true });
   },
   async remove(key) {
-    await fetch(`${endpoint}/${encodeURIComponent(key)}`, { method: 'DELETE' });
+    await setDoc(getStateDocument(), { [key]: deleteField() }, { merge: true });
   }
 };

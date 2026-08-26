@@ -18,18 +18,15 @@
     </main>
     <div class="toast" id="profileToast">Profile saved</div>
     <script type="module">
-      import { storage } from './src/storage.js';
+      import { auth, getUserProfile, onSessionChanged, saveUserProfile } from './src/firebase.js';
 
-      let users = JSON.parse(localStorage.getItem('veloceUsers') || '[]');
-      let sessionEmail = localStorage.getItem('veloceSessionEmail');
-      try {
-        const state = await storage.load();
-        if (Array.isArray(state.veloceUsers)) users = state.veloceUsers;
-        if (state.veloceSessionEmail) sessionEmail = state.veloceSessionEmail;
-      } catch (error) {
-        console.warn('Firestore storage unavailable; using local data.', error);
-      }
-      const currentUser = users.find((user) => user.email === sessionEmail);
+      const firebaseUser = await new Promise((resolve) => {
+        const unsubscribe = onSessionChanged((user) => {
+          unsubscribe();
+          resolve(user);
+        });
+      });
+      const currentUser = firebaseUser ? await getUserProfile(firebaseUser.uid) : null;
       const form = document.querySelector('#profileForm');
       const toast = document.querySelector('#profileToast');
       if (!currentUser) {
@@ -45,18 +42,16 @@
       }
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
-        const oldEmail = currentUser.email;
         currentUser.name = document.querySelector('#editName').value.trim();
         currentUser.username = document.querySelector('#editUsername').value.trim().toLowerCase();
-        currentUser.email = document.querySelector('#editEmail').value.trim().toLowerCase();
         currentUser.location = document.querySelector('#editLocation').value.trim();
-        localStorage.setItem('veloceUsers', JSON.stringify(users));
-        if (oldEmail !== currentUser.email) localStorage.setItem('veloceSessionEmail', currentUser.email);
         try {
-          await storage.set('veloceUsers', users);
-          if (oldEmail !== currentUser.email) await storage.set('veloceSessionEmail', currentUser.email);
+          await saveUserProfile(auth.currentUser.uid, currentUser);
         } catch (error) {
-          console.warn('Firestore storage unavailable; saved locally.', error);
+          console.warn('Firestore storage unavailable.', error);
+          toast.textContent = 'Could not save your profile';
+          toast.classList.add('show');
+          return;
         }
         toast.textContent = 'Profile saved';
         toast.classList.add('show');

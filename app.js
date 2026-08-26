@@ -1,4 +1,5 @@
 import { storage } from './src/storage.js';
+import { getUserProfile, onSessionChanged, saveUserProfile, signIn as signInWithFirebase, signOutUser, signUpWithProfile } from './src/firebase.js';
 
 const toast = document.querySelector('#toast');
 let toastTimeout;
@@ -420,13 +421,15 @@ const garageEntry = document.querySelector('#garageEntry');
 const garageEmpty = document.querySelector('#garageEmpty');
 const storedUsers = localStorage.getItem('veloceUsers');
 const users = storedUsers ? JSON.parse(storedUsers) : [];
-const storedSessionEmail = localStorage.getItem('veloceSessionEmail');
 let signedIn = false;
 let currentUser = null;
 
 function saveUsers() {
   localStorage.setItem('veloceUsers', JSON.stringify(users));
-  void storage.set('veloceUsers', users);
+  if (currentUser?.firebaseUid) {
+    const { passwordHash, ...profile } = currentUser;
+    void saveUserProfile(currentUser.firebaseUid, profile);
+  }
 }
 
 function renderSavedRuns() {
@@ -539,42 +542,29 @@ document.querySelectorAll('[data-close-reset]').forEach((button) => button.addEv
 
 resetForm.addEventListener('submit', async (event) => {
   event.preventDefault();
-  const identifier = document.querySelector('#resetIdentifier').value.trim().toLowerCase();
-  const user = users.find((account) => (account.email || '').toLowerCase() === identifier || (account.username || '').toLowerCase() === identifier);
-  if (!user) {
-    showToast('No account found with that username or email');
-    return;
-  }
-  user.passwordHash = await hashPassword(document.querySelector('#resetPassword').value);
-  saveUsers();
+  showToast('Password reset is managed from Firebase Authentication.');
   closeResetDialog();
   resetForm.reset();
-  showToast('Password updated. You can now log in.');
-  loginModal.classList.add('open');
-  loginModal.setAttribute('aria-hidden', 'false');
 });
-
-async function hashPassword(password) {
-  const encodedPassword = new TextEncoder().encode(password);
-  const digest = await crypto.subtle.digest('SHA-256', encodedPassword);
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
-}
 
 loginForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const email = loginForm.querySelector('#loginEmail').value.trim();
   const password = loginForm.querySelector('#loginPassword').value;
-  const passwordHash = await hashPassword(password);
-  const identifier = email.toLowerCase();
-  const user = users.find((account) => (account.email || '').toLowerCase() === identifier || (account.username || '').toLowerCase() === identifier ? account.passwordHash === passwordHash : false);
-  if (!user) {
+  try {
+    const credential = await signInWithFirebase(email, password);
+    const profile = await getUserProfile(credential.user.uid);
+    if (!profile) throw new Error('Profile not found');
+    const user = { ...profile, email: credential.user.email, firebaseUid: credential.user.uid };
+    users.splice(0, users.length, user);
+    localStorage.setItem('veloceUsers', JSON.stringify(users));
+    signIn(user.name, user);
+    closeLoginDialog();
+    loginForm.reset();
+    showToast('You are now signed in to Veloce');
+  } catch (error) {
     showToast('Incorrect username or password');
-    return;
   }
-  signIn(user.name, user);
-  closeLoginDialog();
-  loginForm.reset();
-  showToast('You are now signed in to Veloce');
 });
 
 const signupModal = document.querySelector('#signupModal');
@@ -605,7 +595,7 @@ function signIn(name, user = null) {
   currentUser = user;
   if (user) {
     localStorage.setItem('veloceSessionEmail', user.email);
-    void storage.set('veloceSessionEmail', user.email);
+    void loadRemoteStorage();
   }
   loginName.textContent = name;
   document.querySelector('.profile-mini span').textContent = 'Auckland, NZ';
@@ -634,7 +624,7 @@ function signOut() {
   signedIn = false;
   currentUser = null;
   localStorage.removeItem('veloceSessionEmail');
-  void storage.remove('veloceSessionEmail');
+  void signOutUser();
   loginName.textContent = 'Not signed in';
   document.querySelector('.profile-mini span').textContent = 'Sign in to save your drives';
   profileAvatar.textContent = '—';
@@ -653,26 +643,26 @@ function signOut() {
   showToast('You have been logged out');
 }
 
-const rememberedUser = users.find((user) => user.email === storedSessionEmail);
-if (rememberedUser) signIn(rememberedUser.name, rememberedUser);
-
 async function loadRemoteStorage() {
   try {
     const state = await storage.load();
-    if (Array.isArray(state.veloceUsers)) users.splice(0, users.length, ...state.veloceUsers);
-    else if (users.length) await storage.set('veloceUsers', users);
     if (Array.isArray(state.veloceSavedRoutes)) savedRoutes.splice(0, savedRoutes.length, ...state.veloceSavedRoutes);
     else if (savedRoutes.length) await storage.set('veloceSavedRoutes', savedRoutes);
-    const sessionEmail = state.veloceSessionEmail || storedSessionEmail;
-    const remoteUser = users.find((user) => user.email === sessionEmail);
-    if (remoteUser) signIn(remoteUser.name, remoteUser);
     updateSavedDrives();
   } catch (error) {
     console.warn('Firestore storage unavailable; using local data.', error);
   }
 }
 
-void loadRemoteStorage();
+onSessionChanged(async (firebaseUser) => {
+  if (!firebaseUser) return;
+  const profile = await getUserProfile(firebaseUser.uid);
+  if (!profile) return;
+  const user = { ...profile, email: firebaseUser.email, firebaseUid: firebaseUser.uid };
+  users.splice(0, users.length, user);
+  localStorage.setItem('veloceUsers', JSON.stringify(users));
+  signIn(user.name, user);
+});
 
 document.querySelectorAll('[data-close-signup]').forEach((button) => {
   button.addEventListener('click', closeSignupDialog);
@@ -691,29 +681,19 @@ signupForm.addEventListener('submit', async (event) => {
   const username = document.querySelector('#signupUsername').value.trim().toLowerCase();
   const email = document.querySelector('#signupEmail').value.trim();
   const password = document.querySelector('#signupPassword').value;
-  const passwordHash = await hashPassword(password);
-  const usernameTaken = users.some((account) => (account.username || '').toLowerCase() === username || (account.email || '').toLowerCase() === email.toLowerCase());
-  if (usernameTaken) {
-    showToast('That username or email is already in use');
-    return;
+  try {
+    const { user: firebaseUser, profile } = await signUpWithProfile({ email, password, name, username });
+    const user = { ...profile, firebaseUid: firebaseUser.uid, car: null, carPhotos: [], savedRuns: [] };
+    await saveUserProfile(firebaseUser.uid, user);
+    users.splice(0, users.length, user);
+    localStorage.setItem('veloceUsers', JSON.stringify(users));
+    signIn(name, user);
+    closeSignupDialog();
+    signupForm.reset();
+    showToast(`Welcome to Veloce, ${name}`);
+  } catch (error) {
+    showToast('Could not create that account. Try a different email.');
   }
-  const user = {
-    name,
-    email,
-    username,
-    passwordHash,
-    location: 'Auckland, NZ',
-    car: null,
-    carPhotos: [],
-    savedRuns: [],
-    createdAt: new Date().toISOString()
-  };
-  users.push(user);
-  saveUsers();
-  signIn(name, user);
-  closeSignupDialog();
-  signupForm.reset();
-  showToast(`Welcome to Veloce, ${name}`);
 });
 
 const addPhotoButton = document.querySelector('#addPhotoButton');

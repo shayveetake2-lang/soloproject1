@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
-import { createUserWithEmailAndPassword, getAuth } from 'firebase/auth';
-import { addDoc, collection, doc, getFirestore, serverTimestamp, setDoc } from 'firebase/firestore';
+import { createUserWithEmailAndPassword, getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { addDoc, collection, doc, getDoc, getFirestore, serverTimestamp, setDoc } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -22,6 +22,18 @@ const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+export const onSessionChanged = onAuthStateChanged;
+export const signIn = (email, password) => signInWithEmailAndPassword(auth, email, password);
+export const signOutUser = () => signOut(auth);
+
+export async function getUserProfile(userId) {
+  const snapshot = await getDoc(doc(db, 'users', userId));
+  return snapshot.exists() ? snapshot.data() : null;
+}
+
+export async function saveUserProfile(userId, profile) {
+  await setDoc(doc(db, 'users', userId), { ...profile, updatedAt: serverTimestamp() }, { merge: true });
+}
 
 export async function addCarToGarage(userId, carData) {
   if (!userId) throw new Error('A Firebase user ID is required.');

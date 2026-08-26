@@ -57,4 +57,14 @@ Run this before committing or deploying:
 npm run check
 ```
 
-The legacy interface uses the Python API to store its shared state in Firestore. `src/firebase.js` contains the browser Firebase helpers: `addCarToGarage(userId, carData)` creates `users/{userId}/garage/{carId}`, and `signUpWithProfile(...)` creates an Email/Password account plus its `users/{userId}` profile document.
+The deployed interface uses Firebase Authentication and Firestore directly. `server.py` is kept only for local backward compatibility and is not required by Cloudflare Pages. `src/firebase.js` contains the browser Firebase helpers: `addCarToGarage(userId, carData)` creates `users/{userId}/garage/{carId}`, and `signUpWithProfile(...)` creates an Email/Password account plus its `users/{userId}` profile document.
+
+## Cloudflare Pages deployment
+
+The deployed app uses Firebase Authentication and direct per-user Firestore documents. It does not require `server.py` or `npm run dev:api`.
+
+1. In the Firebase console, open **Firestore Database > Rules**, replace the rules with the contents of `firestore.rules`, then publish them.
+2. In Cloudflare, go to **Workers & Pages > Create > Pages > Connect to Git** and select this GitHub repository.
+3. Set the build command to `npm run build` and the build output directory to `dist`.
+4. Add these Cloudflare Pages **Environment Variables** from your local `.env`: `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID`, `VITE_FIREBASE_APP_ID`, and `VITE_FIREBASE_MEASUREMENT_ID`.
+5. Deploy. Cloudflare will provide a public `pages.dev` URL that you can share for testing.
