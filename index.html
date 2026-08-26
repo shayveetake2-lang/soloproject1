@@ -111,6 +111,7 @@
         <div class="route-map" id="routeMap" aria-label="Map of the selected Auckland route"></div>
         <div class="route-facts"><div><strong>64 km</strong><span>DISTANCE</span></div><div><strong>2–3 hrs</strong><span>DRIVE TIME</span></div><div><strong>410 m</strong><span>ELEVATION</span></div></div>
         <div class="route-stops"><p class="eyebrow">WORTH THE STOP</p><div class="stop-row"><span class="stop-number">01</span><div><strong>Piha Beach lookout</strong><small>Black sand, big surf, and the best west-facing view.</small></div><span class="stop-time">+ 20 min</span></div><div class="stop-row"><span class="stop-number">02</span><div><strong>Karekare Falls</strong><small>A short walk through native bush to the falls.</small></div><span class="stop-time">+ 35 min</span></div><div class="stop-row"><span class="stop-number">03</span><div><strong>Huia village</strong><small>Quiet harbour views and a good coffee stop.</small></div><span class="stop-time">+ 25 min</span></div></div>
+        <form class="car-form route-invite-form" id="routeInviteForm"><label>INVITE DRIVER BY CONTACT CODE<input id="routeInviteCode" type="text" placeholder="VEL-XXXXXXXX" /></label><button class="text-button" type="submit">Invite to this drive <span>＋</span></button></form>
         <button class="route-start" id="routeStart">Start this drive <span>→</span></button>
       </section>
     </div>
@@ -121,7 +122,7 @@
         <p class="eyebrow">WELCOME BACK</p>
         <h2 id="loginTitle">Log<br /><i>in.</i></h2>
         <form id="loginForm" class="car-form">
-          <label>EMAIL OR USERNAME<input id="loginEmail" type="text" placeholder="you@example.com" required /></label>
+          <label>EMAIL<input id="loginEmail" type="email" placeholder="you@example.com" required /></label>
           <label>PASSWORD<input id="loginPassword" type="password" placeholder="Your password" required /></label>
           <button class="native-share" type="submit">Log in <span>→</span></button>
         </form>

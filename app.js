@@ -458,6 +458,29 @@ document.querySelector('#routeStart').addEventListener('click', () => {
   showToast('Route ready. Start your safe segment when stationary.');
 });
 
+document.querySelector('#routeInviteForm').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  if (!signedIn || !currentUser) {
+    loginButton.click();
+    showToast('Sign in to invite a driver');
+    return;
+  }
+  const inviteCode = document.querySelector('#routeInviteCode').value.trim().toUpperCase();
+  if (!inviteCode) return;
+  const routeName = document.querySelector('#routeTitle').innerText.replace(/\s+/g, ' ').trim();
+  try {
+    await deliverMessageByCode({
+      sender: currentUser,
+      recipientCode: inviteCode,
+      text: `${currentUser.name} invited you to drive ${routeName}.`
+    });
+    document.querySelector('#routeInviteCode').value = '';
+    showToast('Drive invitation sent');
+  } catch (error) {
+    showToast(error.message || 'Could not send the drive invitation');
+  }
+});
+
 const loginModal = document.querySelector('#loginModal');
 const loginButton = document.querySelector('#loginButton');
 const loginTopButton = document.querySelector('#loginTopButton');
@@ -587,7 +610,7 @@ loginForm.addEventListener('submit', async (event) => {
     loginForm.reset();
     showToast('You are now signed in to Veloce');
   } catch (error) {
-    showToast('Incorrect username or password');
+    showToast('Incorrect email or password');
   }
 });
 
