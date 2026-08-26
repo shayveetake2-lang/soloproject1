@@ -23,6 +23,7 @@ service cloud.firestore {
     }
 
     match /messageAddresses/{contactCode} {
+      // Search directory: exposes only public display details and contact code.
       allow read: if request.auth != null;
       allow create: if request.auth != null && request.resource.data.uid == request.auth.uid;
       allow update, delete: if request.auth != null && resource.data.uid == request.auth.uid;

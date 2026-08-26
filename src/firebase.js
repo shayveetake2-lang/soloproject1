@@ -41,8 +41,22 @@ export async function saveMessageAddress(user) {
   if (!userId || !user.contactCode) return;
   await setDoc(doc(db, 'messageAddresses', user.contactCode), {
     uid: userId,
-    name: user.name || user.displayName || user.email || 'Veloce driver'
+    name: user.name || user.displayName || user.email || 'Veloce driver',
+    username: user.username || '',
+    location: user.location || '',
+    contactCode: user.contactCode
   }, { merge: true });
+}
+
+export async function findDrivers(searchText) {
+  const normalizedQuery = searchText.trim().toLowerCase();
+  if (!normalizedQuery) return [];
+  const snapshot = await getDocs(collection(db, 'messageAddresses'));
+  return snapshot.docs
+    .map((driver) => driver.data())
+    .filter((driver) => [driver.name, driver.username, driver.contactCode, driver.location]
+      .some((value) => value?.toLowerCase().includes(normalizedQuery)))
+    .slice(0, 8);
 }
 
 export async function deliverMessageByCode({ sender, recipientCode, text }) {

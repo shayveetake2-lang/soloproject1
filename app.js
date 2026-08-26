@@ -1,5 +1,5 @@
 import { storage } from './src/storage.js';
-import { contactCodeForUser, deliverMessageByCode, getDirectInbox, getUserProfile, onSessionChanged, saveMessageAddress, saveUserProfile, signIn as signInWithFirebase, signOutUser, signUpWithProfile } from './src/firebase.js';
+import { contactCodeForUser, deliverMessageByCode, findDrivers, getDirectInbox, getUserProfile, onSessionChanged, saveMessageAddress, saveUserProfile, signIn as signInWithFirebase, signOutUser, signUpWithProfile } from './src/firebase.js';
 
 const toast = document.querySelector('#toast');
 let toastTimeout;
@@ -11,6 +11,53 @@ function showToast(message) {
   clearTimeout(toastTimeout);
   toastTimeout = setTimeout(() => toast.classList.remove('show'), 2200);
 }
+
+function escapeHtml(value) {
+  return String(value || '').replace(/[&<>'"]/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    "'": '&#39;',
+    '"': '&quot;'
+  })[character]);
+}
+
+const quickMenuButton = document.querySelector('#quickMenuButton');
+const quickMenu = document.querySelector('#quickMenu');
+
+function closeQuickMenu() {
+  quickMenu.hidden = true;
+  quickMenuButton.setAttribute('aria-expanded', 'false');
+}
+
+quickMenuButton.addEventListener('click', () => {
+  const isOpen = !quickMenu.hidden;
+  quickMenu.hidden = isOpen;
+  quickMenuButton.setAttribute('aria-expanded', String(!isOpen));
+});
+
+quickMenu.addEventListener('click', (event) => {
+  const action = event.target.closest('[data-menu-action]')?.dataset.menuAction;
+  if (!action) {
+    closeQuickMenu();
+    return;
+  }
+  event.preventDefault();
+  closeQuickMenu();
+  if (!signedIn) {
+    loginButton.click();
+    showToast('Sign in to use that menu action');
+    return;
+  }
+  if (action === 'saved') document.querySelector('#savedDrivesButton').click();
+  if (action === 'activity') document.querySelector('#activityButton').click();
+  if (action === 'drivers') findUserButton.click();
+  if (action === 'messages') document.querySelector('#messagesButton').click();
+});
+
+document.addEventListener('click', (event) => {
+  if (!quickMenu.hidden && !quickMenu.contains(event.target) && !quickMenuButton.contains(event.target)) closeQuickMenu();
+});
 
 document.querySelectorAll('[data-save]').forEach((button) => {
   button.addEventListener('click', (event) => {
@@ -89,6 +136,7 @@ nativeShare.addEventListener('click', async () => {
 
 document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') {
+    closeQuickMenu();
     closeShareDialog();
     closeCarDialog();
     closeSavedDialog();
@@ -695,7 +743,30 @@ signupForm.addEventListener('submit', async (event) => {
 const userModal = document.querySelector('#userModal');
 const findUserButton = document.querySelector('#findUserButton');
 const userSearch = document.querySelector('#userSearch');
+const driverSearchResults = document.querySelector('#driverSearchResults');
 const noUsers = document.querySelector('#noUsers');
+let activeMessageDriver;
+
+function renderDriverResults(container, drivers, onSelect) {
+  container.innerHTML = '';
+  drivers.forEach((driver) => {
+    const row = document.createElement('button');
+    row.className = 'user-row';
+    const initials = (driver.name || 'V').split(' ').map((part) => part[0]).slice(0, 2).join('').toUpperCase();
+    row.innerHTML = `<span class="avatar user-avatar">${initials}</span><span><strong></strong><small></small></span><span class="follow-label">Message</span>`;
+    row.querySelector('strong').textContent = driver.name || driver.username || 'Veloce driver';
+    row.querySelector('small').textContent = `${driver.username ? `@${driver.username} · ` : ''}${driver.contactCode}`;
+    row.addEventListener('click', () => onSelect(driver));
+    container.append(row);
+  });
+}
+
+async function searchDrivers(searchText, container, onSelect) {
+  if (!signedIn) return [];
+  const drivers = (await findDrivers(searchText)).filter((driver) => driver.uid !== currentUser.firebaseUid);
+  renderDriverResults(container, drivers, onSelect);
+  return drivers;
+}
 
 function closeUserDialog() {
   userModal.classList.remove('open');
@@ -703,6 +774,11 @@ function closeUserDialog() {
 }
 
 findUserButton.addEventListener('click', () => {
+  if (!signedIn) {
+    loginButton.click();
+    showToast('Sign in to find a driver');
+    return;
+  }
   userModal.classList.add('open');
   userModal.setAttribute('aria-hidden', 'false');
   userSearch.focus();
@@ -721,6 +797,14 @@ userSearch.addEventListener('input', () => {
     if (matches) visibleUsers += 1;
   });
   noUsers.classList.toggle('visible', visibleUsers === 0);
+  void searchDrivers(query, driverSearchResults, (driver) => {
+    closeUserDialog();
+    openMessageInbox(driver.contactCode, driver);
+  }).then((drivers) => {
+    noUsers.classList.toggle('visible', query.length > 0 && visibleUsers === 0 && drivers.length === 0);
+  }).catch(() => {
+    noUsers.classList.toggle('visible', true);
+  });
 });
 
 document.querySelectorAll('.user-row').forEach((user) => {
@@ -780,6 +864,8 @@ document.querySelector('#profileFollow').addEventListener('click', () => {
 
 const messageModal = document.querySelector('#messageModal');
 const messageForm = document.querySelector('#messageForm');
+const messageDriverSearch = document.querySelector('#messageDriverSearch');
+const messageDriverResults = document.querySelector('#messageDriverResults');
 let messageRecipient = 'maya';
 let messagingFriends = [];
 
@@ -812,7 +898,7 @@ function renderIncomingMessage(message) {
   const button = document.createElement('button');
   button.dataset.messageRecipient = message.fromCode;
   button.dataset.contactCode = message.fromCode;
-  button.innerHTML = `<strong>${message.fromName || 'Veloce driver'}</strong><span>${message.text}</span><small>${message.fromCode}</small>`;
+  button.innerHTML = `<strong>${escapeHtml(message.fromName || 'Veloce driver')}</strong><span>${escapeHtml(message.text)}</span><small>${escapeHtml(message.fromCode)}</small>`;
   button.addEventListener('click', () => openMessageInbox(message.fromCode));
   document.querySelector('#receivedList').prepend(button);
 }
@@ -874,13 +960,14 @@ async function renderMessages() {
   list.innerHTML = messages.length ? messages.map((message) => {
     const label = message.from === 'me' ? 'You' : 'Driver';
     const code = message.from === 'me' ? message.toCode : message.fromCode;
-    return `<p class="message-bubble ${message.from === 'me' ? 'from-me' : ''}">${message.text}<small>${label} · ${message.time}${code ? ` · ${code}` : ''}</small></p>`;
+    return `<p class="message-bubble ${message.from === 'me' ? 'from-me' : ''}">${escapeHtml(message.text)}<small>${escapeHtml(label)} · ${escapeHtml(message.time)}${code ? ` · ${escapeHtml(code)}` : ''}</small></p>`;
   }).join('') : '<p class="no-messages">Start a conversation about a drive.</p>';
 }
 
-function openMessageInbox(recipient = 'maya') {
+function openMessageInbox(recipient = 'maya', driver = null) {
   messageRecipient = recipient;
-  const profile = profileData[recipient] || messagingFriends.find((friend) => friend.id === recipient);
+  activeMessageDriver = driver || profileData[recipient] || messagingFriends.find((friend) => friend.id === recipient);
+  const profile = activeMessageDriver;
   document.querySelector('#messageTitle').innerHTML = `Chat with<br /><i>${profile?.name || 'Driver'}</i>`;
   document.querySelector('#messageRecipientCode').value = contactCodeForRecipient(recipient);
   void renderMessages();
@@ -889,6 +976,16 @@ function openMessageInbox(recipient = 'maya') {
   messageModal.setAttribute('aria-hidden', 'false');
   document.querySelector('#messageInput').focus();
 }
+
+messageDriverSearch.addEventListener('input', () => {
+  void searchDrivers(messageDriverSearch.value, messageDriverResults, (driver) => {
+    messageDriverSearch.value = '';
+    messageDriverResults.innerHTML = '';
+    openMessageInbox(driver.contactCode, driver);
+  }).catch(() => {
+    messageDriverResults.innerHTML = '';
+  });
+});
 
 document.querySelectorAll('#receivedList [data-message-recipient]').forEach((button) => {
   button.addEventListener('click', () => openMessageInbox(button.dataset.messageRecipient));
