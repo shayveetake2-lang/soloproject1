@@ -768,7 +768,6 @@ const findUserButton = document.querySelector('#findUserButton');
 const userSearch = document.querySelector('#userSearch');
 const driverSearchResults = document.querySelector('#driverSearchResults');
 const noUsers = document.querySelector('#noUsers');
-let activeMessageDriver;
 
 function renderDriverResults(container, drivers, onSelect) {
   container.innerHTML = '';
@@ -803,8 +802,8 @@ async function openProfileFromDriver(driver) {
     openMessageInbox(driver.contactCode, driver);
   };
 
-  profileModal.classList.add('open');
-  profileModal.setAttribute('aria-hidden', 'false');
+  document.querySelector('#profileModal').classList.add('open');
+  document.querySelector('#profileModal').setAttribute('aria-hidden', 'false');
 
   try {
     const fullProfile = await getUserProfile(driver.uid);
@@ -1004,8 +1003,7 @@ async function renderMessages() {
 
 function openMessageInbox(recipient = '', driver = null) {
   messageRecipient = recipient;
-  activeMessageDriver = driver || messagingFriends.find((friend) => friend.id === recipient);
-  const profile = activeMessageDriver;
+  const profile = driver || messagingFriends.find((friend) => friend.id === recipient);
   document.querySelector('#messageTitle').innerHTML = `Chat with<br /><i>${profile?.name || 'Driver'}</i>`;
   document.querySelector('#messageRecipientCode').value = contactCodeForRecipient(recipient);
   void renderMessages();
