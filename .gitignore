@@ -2,3 +2,5 @@ veloce.sqlite3
 __pycache__/
 node_modules/
 dist/
+.env
+firebase-service-account.json

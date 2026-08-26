@@ -1,17 +1,23 @@
 #!/usr/bin/env python3
 import json
-import sqlite3
+import os
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
 
-ROOT = Path(__file__).parent
-DB_PATH = ROOT / 'veloce.sqlite3'
+import firebase_admin
+from firebase_admin import credentials, firestore
+
+COLLECTION = 'app_storage'
 
 
-def get_connection():
-    connection = sqlite3.connect(DB_PATH)
-    connection.execute('CREATE TABLE IF NOT EXISTS app_storage (key TEXT PRIMARY KEY, value TEXT NOT NULL)')
-    return connection
+def get_database():
+    if not firebase_admin._apps:
+        service_account_path = os.environ.get('FIREBASE_SERVICE_ACCOUNT')
+        if not service_account_path:
+            raise RuntimeError('Set FIREBASE_SERVICE_ACCOUNT in .env before starting the API server.')
+        if not os.path.isfile(service_account_path):
+            raise RuntimeError(f'Firebase service-account file not found: {service_account_path}')
+        firebase_admin.initialize_app(credentials.Certificate(service_account_path))
+    return firestore.client()
 
 
 class VeloceHandler(SimpleHTTPRequestHandler):
@@ -27,12 +33,11 @@ class VeloceHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == '/api/health':
-            self.send_json({'ok': True, 'database': str(DB_PATH.name)})
+            self.send_json({'ok': True, 'database': 'firestore'})
             return
         if self.path == '/api/storage':
-            with get_connection() as connection:
-                rows = connection.execute('SELECT key, value FROM app_storage').fetchall()
-            self.send_json({key: json.loads(value) for key, value in rows})
+            documents = get_database().collection(COLLECTION).stream()
+            self.send_json({document.id: document.to_dict().get('value') for document in documents})
             return
         super().do_GET()
 
@@ -44,13 +49,7 @@ class VeloceHandler(SimpleHTTPRequestHandler):
             payload = json.loads(self.read_body())
             if not isinstance(payload, dict) or not isinstance(payload.get('key'), str):
                 raise ValueError('Expected a storage key and value')
-            value = json.dumps(payload.get('value'))
-            with get_connection() as connection:
-                connection.execute(
-                    'INSERT INTO app_storage(key, value) VALUES (?, ?) '
-                    'ON CONFLICT(key) DO UPDATE SET value = excluded.value',
-                    (payload['key'], value),
-                )
+            get_database().collection(COLLECTION).document(payload['key']).set({'value': payload.get('value')})
             self.send_json({'ok': True})
         except (json.JSONDecodeError, ValueError) as error:
             self.send_error(400, str(error))
@@ -60,8 +59,7 @@ class VeloceHandler(SimpleHTTPRequestHandler):
             self.send_error(404)
             return
         key = self.path.removeprefix('/api/storage/')
-        with get_connection() as connection:
-            connection.execute('DELETE FROM app_storage WHERE key = ?', (key,))
+        get_database().collection(COLLECTION).document(key).delete()
         self.send_json({'ok': True})
 
     def read_body(self):
@@ -78,7 +76,6 @@ class VeloceHandler(SimpleHTTPRequestHandler):
 
 
 if __name__ == '__main__':
-    with get_connection():
-        pass
-    print('Veloce database server running at http://localhost:8000')
+    get_database()
+    print('Veloce Firestore server running at http://localhost:8000')
     ThreadingHTTPServer(('localhost', 8000), VeloceHandler).serve_forever()

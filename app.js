@@ -1,3 +1,5 @@
+import { storage } from './src/storage.js';
+
 const toast = document.querySelector('#toast');
 let toastTimeout;
 let savedRoutes = JSON.parse(localStorage.getItem('veloceSavedRoutes') || '[]');
@@ -25,6 +27,7 @@ document.querySelectorAll('[data-save]').forEach((button) => {
     const nextRoutes = button.classList.contains('saved') ? [...new Set([...savedRoutes, routeName])] : savedRoutes.filter((route) => route !== routeName);
     savedRoutes.splice(0, savedRoutes.length, ...nextRoutes);
     localStorage.setItem('veloceSavedRoutes', JSON.stringify(savedRoutes));
+    void storage.set('veloceSavedRoutes', savedRoutes);
     if (typeof updateSavedDrives === 'function') updateSavedDrives();
     showToast(button.classList.contains('saved') ? 'Route saved to your drives' : 'Route removed from saved drives');
   });
@@ -423,6 +426,7 @@ let currentUser = null;
 
 function saveUsers() {
   localStorage.setItem('veloceUsers', JSON.stringify(users));
+  void storage.set('veloceUsers', users);
 }
 
 function renderSavedRuns() {
@@ -599,7 +603,10 @@ createAccountTop.addEventListener('click', openSignupDialog);
 function signIn(name, user = null) {
   signedIn = true;
   currentUser = user;
-  if (user) localStorage.setItem('veloceSessionEmail', user.email);
+  if (user) {
+    localStorage.setItem('veloceSessionEmail', user.email);
+    void storage.set('veloceSessionEmail', user.email);
+  }
   loginName.textContent = name;
   document.querySelector('.profile-mini span').textContent = 'Auckland, NZ';
   loginButton.textContent = 'Edit profile';
@@ -627,6 +634,7 @@ function signOut() {
   signedIn = false;
   currentUser = null;
   localStorage.removeItem('veloceSessionEmail');
+  void storage.remove('veloceSessionEmail');
   loginName.textContent = 'Not signed in';
   document.querySelector('.profile-mini span').textContent = 'Sign in to save your drives';
   profileAvatar.textContent = '—';
@@ -647,6 +655,24 @@ function signOut() {
 
 const rememberedUser = users.find((user) => user.email === storedSessionEmail);
 if (rememberedUser) signIn(rememberedUser.name, rememberedUser);
+
+async function loadRemoteStorage() {
+  try {
+    const state = await storage.load();
+    if (Array.isArray(state.veloceUsers)) users.splice(0, users.length, ...state.veloceUsers);
+    else if (users.length) await storage.set('veloceUsers', users);
+    if (Array.isArray(state.veloceSavedRoutes)) savedRoutes.splice(0, savedRoutes.length, ...state.veloceSavedRoutes);
+    else if (savedRoutes.length) await storage.set('veloceSavedRoutes', savedRoutes);
+    const sessionEmail = state.veloceSessionEmail || storedSessionEmail;
+    const remoteUser = users.find((user) => user.email === sessionEmail);
+    if (remoteUser) signIn(remoteUser.name, remoteUser);
+    updateSavedDrives();
+  } catch (error) {
+    console.warn('Firestore storage unavailable; using local data.', error);
+  }
+}
+
+void loadRemoteStorage();
 
 document.querySelectorAll('[data-close-signup]').forEach((button) => {
   button.addEventListener('click', closeSignupDialog);
@@ -815,9 +841,35 @@ function closeMessageDialog() {
   messageModal.setAttribute('aria-hidden', 'true');
 }
 
-function renderMessages() {
+function messageStorageKey(recipient = messageRecipient) {
+  const owner = currentUser?.firebaseUid || currentUser?.email?.toLowerCase() || 'guest';
+  return `veloceMessages_${encodeURIComponent(owner)}_${recipient}`;
+}
+
+function localMessageStorageKey(recipient = messageRecipient) {
+  return `veloceMessages_${recipient}`;
+}
+
+async function loadMessages(recipient = messageRecipient) {
+  const storageKey = messageStorageKey(recipient);
+  const localMessages = JSON.parse(localStorage.getItem(storageKey) || localStorage.getItem(localMessageStorageKey(recipient)) || '[]');
+  try {
+    const state = await storage.load();
+    const messages = state[storageKey];
+    if (Array.isArray(messages)) return messages;
+    if (localMessages.length) await storage.set(storageKey, localMessages);
+  } catch (error) {
+    console.warn('Firestore storage unavailable; using local messages.', error);
+  }
+  return localMessages;
+}
+
+async function renderMessages() {
+  const recipient = messageRecipient;
   const list = document.querySelector('#messageList');
-  const messages = JSON.parse(localStorage.getItem(`veloceMessages_${messageRecipient}`) || '[]');
+  list.innerHTML = '<p class="no-messages">Loading messages...</p>';
+  const messages = await loadMessages(recipient);
+  if (recipient !== messageRecipient) return;
   list.innerHTML = messages.length ? messages.map((message) => `<p class="message-bubble ${message.from === 'me' ? 'from-me' : ''}">${message.text}<small>${message.from === 'me' ? 'You' : 'Driver'} · ${message.time}</small></p>`).join('') : '<p class="no-messages">Start a conversation about a drive.</p>';
 }
 
@@ -825,7 +877,7 @@ function openMessageInbox(recipient = 'maya') {
   messageRecipient = recipient;
   const profile = profileData[recipient];
   document.querySelector('#messageTitle').innerHTML = `Chat with<br /><i>${profile?.name || 'Driver'}</i>`;
-  renderMessages();
+  void renderMessages();
   messageModal.classList.add('open');
   messageModal.setAttribute('aria-hidden', 'false');
   document.querySelector('#messageInput').focus();
@@ -872,13 +924,24 @@ document.querySelector('#profileMessage').addEventListener('click', () => {
   openMessageInbox(document.querySelector('#profileFollow').dataset.profile || 'maya');
 });
 
-messageForm.addEventListener('submit', (event) => {
+messageForm.addEventListener('submit', async (event) => {
   event.preventDefault();
-  const messages = JSON.parse(localStorage.getItem(`veloceMessages_${messageRecipient}`) || '[]');
-  messages.push({ from: 'me', text: document.querySelector('#messageInput').value.trim(), time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
-  localStorage.setItem(`veloceMessages_${messageRecipient}`, JSON.stringify(messages));
-  document.querySelector('#messageInput').value = '';
-  renderMessages();
+  const input = document.querySelector('#messageInput');
+  const text = input.value.trim();
+  if (!text) return;
+  const recipient = messageRecipient;
+  const storageKey = messageStorageKey(recipient);
+  const messages = await loadMessages(recipient);
+  messages.push({ from: 'me', text, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
+  localStorage.setItem(storageKey, JSON.stringify(messages));
+  try {
+    await storage.set(storageKey, messages);
+  } catch (error) {
+    console.warn('Firestore storage unavailable; message saved locally.', error);
+    showToast('Message saved locally. It will not sync until Firestore is available.');
+  }
+  input.value = '';
+  void renderMessages();
 });
 
 const timerButton = document.querySelector('#sidebarTimerButton');

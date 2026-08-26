@@ -14,12 +14,21 @@
   <body class="profile-page">
     <main class="profile-directory">
       <header class="routes-header"><a class="back-link" href="index.html">← Discover</a><div class="breadcrumb">ACCOUNT / <span>EDIT PROFILE</span></div><span class="route-count">SIGNED IN</span></header>
-      <section class="profile-edit-shell"><div class="profile-edit-heading"><p class="eyebrow">YOUR VELOCE ACCOUNT</p><h1>Edit your<br /><em>profile.</em></h1><span id="profileStatus">Your profile details are stored on this device.</span><div class="own-info" id="ownInfo"></div></div><form id="profileForm" class="car-form profile-form"><label>YOUR NAME<input id="editName" type="text" required /></label><label>USERNAME<input id="editUsername" type="text" minlength="3" required /></label><label>EMAIL<input id="editEmail" type="email" required /></label><label>LOCATION<input id="editLocation" type="text" required /></label><button class="native-share" type="submit">Save profile <span>→</span></button></form></section>
+      <section class="profile-edit-shell"><div class="profile-edit-heading"><p class="eyebrow">YOUR VELOCE ACCOUNT</p><h1>Edit your<br /><em>profile.</em></h1><span id="profileStatus">Your profile details sync automatically.</span><div class="own-info" id="ownInfo"></div></div><form id="profileForm" class="car-form profile-form"><label>YOUR NAME<input id="editName" type="text" required /></label><label>USERNAME<input id="editUsername" type="text" minlength="3" required /></label><label>EMAIL<input id="editEmail" type="email" required /></label><label>LOCATION<input id="editLocation" type="text" required /></label><button class="native-share" type="submit">Save profile <span>→</span></button></form></section>
     </main>
     <div class="toast" id="profileToast">Profile saved</div>
-    <script>
-      const users = JSON.parse(localStorage.getItem('veloceUsers') || '[]');
-      const sessionEmail = localStorage.getItem('veloceSessionEmail');
+    <script type="module">
+      import { storage } from './src/storage.js';
+
+      let users = JSON.parse(localStorage.getItem('veloceUsers') || '[]');
+      let sessionEmail = localStorage.getItem('veloceSessionEmail');
+      try {
+        const state = await storage.load();
+        if (Array.isArray(state.veloceUsers)) users = state.veloceUsers;
+        if (state.veloceSessionEmail) sessionEmail = state.veloceSessionEmail;
+      } catch (error) {
+        console.warn('Firestore storage unavailable; using local data.', error);
+      }
       const currentUser = users.find((user) => user.email === sessionEmail);
       const form = document.querySelector('#profileForm');
       const toast = document.querySelector('#profileToast');
@@ -34,7 +43,7 @@
         const latestService = car?.serviceHistory?.at(-1);
         document.querySelector('#ownInfo').innerHTML = `<p class="eyebrow">STORED ACCOUNT INFO</p><div class="own-info-grid"><div><strong>${car ? car.model : 'No car added'}</strong><span>GARAGE CAR</span></div><div><strong>${car?.year || '—'}</strong><span>CAR YEAR</span></div><div><strong>${car?.colour || '—'}</strong><span>COLOUR</span></div><div><strong>${car?.oilKm || '—'}</strong><span>KM SINCE OIL</span></div><div><strong>${car?.odometer || '—'}</strong><span>ODOMETER KM</span></div><div><strong>${(currentUser.carPhotos || []).length}</strong><span>CAR PHOTOS</span></div><div><strong>${car?.nextService?.task || '—'}</strong><span>NEXT SERVICE</span></div><div><strong>${car?.nextService?.dueKm || '—'}</strong><span>NEXT SERVICE KM</span></div><div><strong>${car?.serviceHistory?.length || 0}</strong><span>SERVICE RECORDS</span></div><div><strong>${latestService?.note || '—'}</strong><span>LATEST SERVICE NOTES</span></div></div>`;
       }
-      form.addEventListener('submit', (event) => {
+      form.addEventListener('submit', async (event) => {
         event.preventDefault();
         const oldEmail = currentUser.email;
         currentUser.name = document.querySelector('#editName').value.trim();
@@ -43,6 +52,12 @@
         currentUser.location = document.querySelector('#editLocation').value.trim();
         localStorage.setItem('veloceUsers', JSON.stringify(users));
         if (oldEmail !== currentUser.email) localStorage.setItem('veloceSessionEmail', currentUser.email);
+        try {
+          await storage.set('veloceUsers', users);
+          if (oldEmail !== currentUser.email) await storage.set('veloceSessionEmail', currentUser.email);
+        } catch (error) {
+          console.warn('Firestore storage unavailable; saved locally.', error);
+        }
         toast.textContent = 'Profile saved';
         toast.classList.add('show');
         setTimeout(() => { window.location.href = 'index.html'; }, 700);

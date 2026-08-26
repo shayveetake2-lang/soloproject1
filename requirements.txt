@@ -1,0 +1,2 @@
+firebase-admin>=6.0,<7.0
+cryptography>=41,<45
