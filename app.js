@@ -1,5 +1,5 @@
 import { storage } from './src/storage.js';
-import { contactCodeForUser, getUserProfile, onSessionChanged, saveUserProfile, signIn as signInWithFirebase, signOutUser, signUpWithProfile } from './src/firebase.js';
+import { contactCodeForUser, deliverMessageByCode, getDirectInbox, getUserProfile, onSessionChanged, saveMessageAddress, saveUserProfile, signIn as signInWithFirebase, signOutUser, signUpWithProfile } from './src/firebase.js';
 
 const toast = document.querySelector('#toast');
 let toastTimeout;
@@ -573,6 +573,7 @@ function signIn(name, user = null) {
       user.contactCode = contactCodeForUser(user.firebaseUid);
       void saveUserProfile(user.firebaseUid, { contactCode: user.contactCode });
     }
+    void saveMessageAddress(user);
     localStorage.setItem('veloceSessionEmail', user.email);
     void loadRemoteStorage();
   }
@@ -625,6 +626,8 @@ async function loadRemoteStorage() {
     if (Array.isArray(state.veloceSavedRoutes)) savedRoutes.splice(0, savedRoutes.length, ...state.veloceSavedRoutes);
     else if (savedRoutes.length) await storage.set('veloceSavedRoutes', savedRoutes);
     hydrateMessagingDirectory(state);
+    const inbox = await getDirectInbox(currentUser.firebaseUid);
+    await syncDirectInbox(state, inbox);
     updateSavedDrives();
   } catch (error) {
     console.warn('Firestore storage unavailable; using local data.', error);
@@ -789,6 +792,36 @@ function hydrateMessagingDirectory(state) {
   });
 }
 
+function renderIncomingMessage(message) {
+  if (document.querySelector(`#receivedList [data-message-recipient="${message.fromCode}"]`)) return;
+  const button = document.createElement('button');
+  button.dataset.messageRecipient = message.fromCode;
+  button.dataset.contactCode = message.fromCode;
+  button.innerHTML = `<strong>${message.fromName || 'Veloce driver'}</strong><span>${message.text}</span><small>${message.fromCode}</small>`;
+  button.addEventListener('click', () => openMessageInbox(message.fromCode));
+  document.querySelector('#receivedList').prepend(button);
+}
+
+async function syncDirectInbox(state, inbox) {
+  for (const message of inbox) {
+    const key = messageStorageKey(message.fromCode);
+    const messages = state[key] || [];
+    if (!messages.some((item) => item.deliveryId === message.id)) {
+      messages.push({
+        deliveryId: message.id,
+        from: 'driver',
+        fromCode: message.fromCode,
+        toCode: message.toCode,
+        text: message.text,
+        time: message.sentAt ? new Date(message.sentAt.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'
+      });
+      state[key] = messages;
+      await storage.set(key, messages);
+    }
+    renderIncomingMessage(message);
+  }
+}
+
 function closeMessageDialog() {
   messageModal.classList.remove('open');
   messageModal.setAttribute('aria-hidden', 'true');
@@ -834,6 +867,7 @@ function openMessageInbox(recipient = 'maya') {
   messageRecipient = recipient;
   const profile = profileData[recipient] || messagingFriends.find((friend) => friend.id === recipient);
   document.querySelector('#messageTitle').innerHTML = `Chat with<br /><i>${profile?.name || 'Driver'}</i>`;
+  document.querySelector('#messageRecipientCode').value = contactCodeForRecipient(recipient);
   void renderMessages();
   messageModal.classList.add('open');
   messageModal.setAttribute('aria-hidden', 'false');
@@ -906,12 +940,13 @@ messageForm.addEventListener('submit', async (event) => {
   const text = input.value.trim();
   if (!text) return;
   const recipient = messageRecipient;
+  const recipientCode = document.querySelector('#messageRecipientCode').value.trim().toUpperCase() || contactCodeForRecipient(recipient);
   const storageKey = messageStorageKey(recipient);
   const messages = await loadMessages(recipient);
   messages.push({
     from: 'me',
     fromCode: currentUser.contactCode,
-    toCode: contactCodeForRecipient(recipient),
+    toCode: recipientCode,
     text,
     time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   });
@@ -921,6 +956,15 @@ messageForm.addEventListener('submit', async (event) => {
   } catch (error) {
     console.warn('Firestore storage unavailable; message saved locally.', error);
     showToast('Message saved locally. It will not sync until Firestore is available.');
+    input.value = '';
+    void renderMessages();
+    return;
+  }
+  try {
+    await deliverMessageByCode({ sender: currentUser, recipientCode, text });
+  } catch (error) {
+    console.warn('Could not deliver direct message.', error);
+    showToast(error.message || 'Message saved, but could not be delivered.');
   }
   input.value = '';
   void renderMessages();
