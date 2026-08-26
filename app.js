@@ -499,8 +499,10 @@ let inboxRefreshTimer;
 function saveUsers() {
   localStorage.setItem('veloceUsers', JSON.stringify(users));
   if (currentUser?.firebaseUid) {
-    const { passwordHash, ...profile } = currentUser;
-    void saveUserProfile(currentUser.firebaseUid, profile);
+    // Only persist profile fields to Firestore — local-only fields (car, carPhotos,
+    // savedRuns, passwordHash) stay in localStorage only so they don't clobber the DB.
+    const { passwordHash: _p, car: _car, carPhotos: _photos, savedRuns: _runs, firebaseUid: _uid, ...firestoreProfile } = currentUser;
+    void saveUserProfile(currentUser.firebaseUid, firestoreProfile);
   }
 }
 
@@ -645,7 +647,9 @@ function signIn(name, user = null) {
       user.contactCode = contactCodeForUser(user.firebaseUid);
       void saveUserProfile(user.firebaseUid, { contactCode: user.contactCode });
     }
-    void saveMessageAddress(user);
+    void saveMessageAddress(user).catch((error) => {
+      console.error('Failed to write user to search index (messageAddresses):', error);
+    });
     localStorage.setItem('veloceSessionEmail', user.email);
     void loadRemoteStorage();
     clearInterval(inboxRefreshTimer);
@@ -749,10 +753,8 @@ signupForm.addEventListener('submit', async (event) => {
   const password = document.querySelector('#signupPassword').value;
   try {
     const { user: firebaseUser, profile } = await signUpWithProfile({ email, password, name, username });
-    // Strip Firestore sentinel values (serverTimestamp) before storing in localStorage
-    const { createdAt: _c, updatedAt: _u, ...safeProfile } = profile;
-    const user = { ...safeProfile, firebaseUid: firebaseUser.uid, car: null, carPhotos: [], savedRuns: [] };
-    await saveUserProfile(firebaseUser.uid, user);
+    // profilePlain is already JSON-safe (no Firestore sentinel values)
+    const user = { ...profile, firebaseUid: firebaseUser.uid, car: null, carPhotos: [], savedRuns: [] };
     users.splice(0, users.length, user);
     localStorage.setItem('veloceUsers', JSON.stringify(users));
     signIn(name, user);
@@ -853,9 +855,9 @@ document.querySelectorAll('[data-close-user]').forEach((button) => {
 
 userSearch.addEventListener('input', () => {
   const query = userSearch.value.toLowerCase().trim();
-  // hide the hardcoded static rows while a live search is active
+  // hide static rows (if any) while a live search is active
   document.querySelectorAll('#userList .user-row').forEach((user) => {
-    const matches = !query || user.dataset.user.toLowerCase().includes(query);
+    const matches = !query || (user.dataset.user || '').toLowerCase().includes(query);
     user.hidden = !matches;
   });
   if (!query) {
@@ -870,16 +872,6 @@ userSearch.addEventListener('input', () => {
     noUsers.classList.toggle('visible', drivers.length === 0 && !staticVisible);
   }).catch(() => {
     noUsers.classList.toggle('visible', true);
-  });
-});
-
-document.querySelectorAll('.user-row').forEach((user) => {
-  user.addEventListener('click', () => {
-    const followButton = user.querySelector('.follow-label');
-    const userName = user.querySelector('.user-name').textContent;
-    const isFollowing = followButton.textContent === 'Following';
-    followButton.textContent = isFollowing ? 'Follow' : 'Following';
-    showToast(isFollowing ? `Unfollowed ${userName}` : `Now following ${userName}`);
   });
 });
 
@@ -1030,10 +1022,6 @@ messageDriverSearch.addEventListener('input', () => {
   }).catch(() => {
     messageDriverResults.innerHTML = '';
   });
-});
-
-document.querySelectorAll('#receivedList [data-message-recipient]').forEach((button) => {
-  button.addEventListener('click', () => openMessageInbox(button.dataset.messageRecipient));
 });
 
 document.querySelectorAll('.message-request').forEach((request) => {
