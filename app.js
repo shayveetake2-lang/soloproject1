@@ -1,5 +1,5 @@
 import { storage } from './src/storage.js';
-import { contactCodeForUser, deliverMessageByCode, findDrivers, getDirectInbox, getUserProfile, onSessionChanged, saveMessageAddress, saveUserProfile, signIn as signInWithFirebase, signOutUser, signUpWithProfile } from './src/firebase.js';
+import { contactCodeForUser, deliverMessageByCode, findDrivers, getCurrentUserClaims, getDirectInbox, getUserProfile, onSessionChanged, requestAdminAction, saveMessageAddress, saveUserProfile, signIn as signInWithFirebase, signOutUser, signUpWithProfile } from './src/firebase.js';
 
 const toast = document.querySelector('#toast');
 let toastTimeout;
@@ -24,6 +24,83 @@ function escapeHtml(value) {
 
 const quickMenuButton = document.querySelector('#quickMenuButton');
 const quickMenu = document.querySelector('#quickMenu');
+const adminPanelButton = document.querySelector('#adminPanelButton');
+const adminPanelModal = document.querySelector('#adminPanelModal');
+const adminList = document.querySelector('#adminList');
+const addAdminForm = document.querySelector('#addAdminForm');
+
+function closeAdminPanel() {
+  adminPanelModal.classList.remove('open');
+  adminPanelModal.setAttribute('aria-hidden', 'true');
+}
+
+function renderAdmins(admins) {
+  adminList.replaceChildren();
+  admins.forEach((admin) => {
+    const row = document.createElement('div');
+    row.className = 'admin-row';
+    const details = document.createElement('span');
+    details.innerHTML = `<strong>${escapeHtml(admin.name || admin.email)}</strong><small>${escapeHtml(admin.email)}</small>`;
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.textContent = 'Remove';
+    remove.addEventListener('click', async () => {
+      try {
+        await requestAdminAction('removeAdmin', { uid: admin.uid });
+        await loadAdmins();
+        showToast('Admin access removed');
+      } catch (error) {
+        showToast(error.message);
+      }
+    });
+    row.append(details, remove);
+    adminList.append(row);
+  });
+}
+
+async function loadAdmins() {
+  adminList.textContent = 'Loading admins...';
+  const { admins } = await requestAdminAction('listAdmins');
+  renderAdmins(admins);
+}
+
+async function updateAdminPanelAccess() {
+  try {
+    const claims = await getCurrentUserClaims();
+    adminPanelButton.hidden = claims.admin !== true;
+  } catch (error) {
+    adminPanelButton.hidden = true;
+  }
+}
+
+adminPanelButton.addEventListener('click', async () => {
+  adminPanelModal.classList.add('open');
+  adminPanelModal.setAttribute('aria-hidden', 'false');
+  try {
+    await loadAdmins();
+  } catch (error) {
+    adminList.textContent = error.message;
+  }
+});
+
+document.querySelectorAll('[data-close-admin-panel]').forEach((button) => button.addEventListener('click', closeAdminPanel));
+
+addAdminForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  try {
+    await requestAdminAction('createAdmin', {
+      name: document.querySelector('#adminName').value.trim(),
+      username: document.querySelector('#adminUsername').value.trim(),
+      email: document.querySelector('#adminEmail').value.trim(),
+      password: document.querySelector('#adminPassword').value
+    });
+    addAdminForm.reset();
+    await loadAdmins();
+    showToast('Admin account added');
+  } catch (error) {
+    showToast(error.message);
+  }
+});
 
 function closeQuickMenu() {
   quickMenu.hidden = true;
@@ -675,6 +752,7 @@ function signIn(name, user = null) {
   renderSavedRuns();
   updateSavedDrives();
   document.querySelector('#messagesButton').hidden = false;
+  void updateAdminPanelAccess();
 }
 
 function signOut() {
@@ -696,6 +774,8 @@ function signOut() {
   garageEmpty.textContent = 'Sign in or add a car to your garage.';
   savedDrivesButton.hidden = true;
   document.querySelector('#messagesButton').hidden = true;
+  adminPanelButton.hidden = true;
+  closeAdminPanel();
   renderSavedRuns();
   showToast('You have been logged out');
 }

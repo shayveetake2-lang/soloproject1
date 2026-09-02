@@ -34,7 +34,7 @@
       </aside>
 
       <main class="main-content" id="discover">
-        <header class="topbar"><div class="breadcrumb">EXPLORE / <span>AUCKLAND</span></div><div class="topbar-actions"><button class="find-user-button" id="findUserButton"><span>⌕</span> Find a user</button><button class="login-top-button" id="loginTopButton">Log in</button><button class="create-account-top" id="createAccountTop">Create account <span>＋</span></button><button class="desktop-menu" id="quickMenuButton" aria-label="Open menu" aria-expanded="false" aria-controls="quickMenu">☰</button><nav class="quick-menu" id="quickMenu" aria-label="Quick menu" hidden><a href="#discover">Discover</a><a href="routes.html">Routes</a><a href="forum.html">Forum</a><a href="feed.html">Community feed</a><button type="button" data-menu-action="saved">Saved drives</button><button type="button" data-menu-action="activity">My activity</button><button type="button" data-menu-action="drivers">Find a driver</button><button type="button" data-menu-action="messages">Messages</button></nav></div></header>
+        <header class="topbar"><div class="breadcrumb">EXPLORE / <span>AUCKLAND</span></div><div class="topbar-actions"><button class="find-user-button" id="findUserButton"><span>⌕</span> Find a user</button><button class="admin-panel-button" id="adminPanelButton" hidden>Admin panel</button><button class="login-top-button" id="loginTopButton">Log in</button><button class="create-account-top" id="createAccountTop">Create account <span>＋</span></button><button class="desktop-menu" id="quickMenuButton" aria-label="Open menu" aria-expanded="false" aria-controls="quickMenu">☰</button><nav class="quick-menu" id="quickMenu" aria-label="Quick menu" hidden><a href="#discover">Discover</a><a href="routes.html">Routes</a><a href="forum.html">Forum</a><a href="feed.html">Community feed</a><button type="button" data-menu-action="saved">Saved drives</button><button type="button" data-menu-action="activity">My activity</button><button type="button" data-menu-action="drivers">Find a driver</button><button type="button" data-menu-action="messages">Messages</button></nav></div></header>
         <section class="intro-row"><div><p class="eyebrow">Thursday, August 20</p><h1>Take the long way<br /><em>home.</em></h1></div><div class="intro-actions"><a class="forum-button" href="forum.html">◌ Forum</a><button class="primary-button share-button"><span>＋</span> Share a drive</button></div></section>
         <section class="hero-route" aria-label="Featured route">
           <img src="https://preview.redd.it/made-a-street-legal-nfs-most-wanted-e46-m3-gtr-replica-v0-tqyc56xo772d1.jpg?width=1080&crop=smart&auto=webp&s=853d094d35f29d952d829d711cf084838c42ed47" alt="Street legal Need for Speed Most Wanted E46 M3 GTR replica" />
@@ -156,6 +156,22 @@
           <button class="native-share" type="submit">Create account <span>→</span></button>
         </form>
         <p class="account-note">Already on Veloce? <button type="button" id="backToLoginButton">Log in</button></p>
+      </section>
+    </div>
+    <div class="share-modal" id="adminPanelModal" aria-hidden="true">
+      <div class="share-backdrop" data-close-admin-panel></div>
+      <section class="saved-dialog account-dialog admin-panel-dialog" role="dialog" aria-modal="true" aria-labelledby="adminPanelTitle">
+        <button class="share-close" data-close-admin-panel aria-label="Close admin panel">×</button>
+        <p class="eyebrow">ADMINISTRATION</p>
+        <h2 id="adminPanelTitle">Admin<br /><i>panel.</i></h2>
+        <form id="addAdminForm" class="car-form">
+          <label>NAME<input id="adminName" type="text" required /></label>
+          <label>USERNAME<input id="adminUsername" type="text" minlength="3" required /></label>
+          <label>EMAIL<input id="adminEmail" type="email" required /></label>
+          <label>PASSWORD<input id="adminPassword" type="password" minlength="8" required /></label>
+          <button class="native-share" type="submit">Add admin <span>＋</span></button>
+        </form>
+        <div class="admin-list" id="adminList"></div>
       </section>
     </div>
     <div class="share-modal" id="profileModal" aria-hidden="true">

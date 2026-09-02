@@ -27,6 +27,26 @@ export const signIn = (email, password) => signInWithEmailAndPassword(auth, emai
 export const signOutUser = () => signOut(auth);
 export const contactCodeForUser = (userId) => `VEL-${userId.slice(0, 8).toUpperCase()}`;
 
+export async function getCurrentUserClaims() {
+  if (!auth.currentUser) return {};
+  const token = await auth.currentUser.getIdTokenResult(true);
+  return token.claims;
+}
+
+export async function requestAdminAction(action, payload = {}) {
+  if (!auth.currentUser) throw new Error('Sign in before using the admin panel.');
+  const token = await auth.currentUser.getIdToken();
+  const endpoint = import.meta.env.VITE_ADMIN_API_URL || `https://us-central1-${firebaseConfig.projectId}.cloudfunctions.net/adminPanel`;
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, ...payload })
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || 'The admin request failed.');
+  return data;
+}
+
 export async function getUserProfile(userId) {
   const snapshot = await getDoc(doc(db, 'users', userId));
   return snapshot.exists() ? snapshot.data() : null;

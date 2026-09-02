@@ -43,6 +43,33 @@ npm run check
 
 The interface uses Firebase Authentication and Firestore directly. `src/firebase.js` contains the browser Firebase helpers: `addCarToGarage(userId, carData)` creates `users/{userId}/garage/{carId}`, and `signUpWithProfile(...)` creates an Email/Password account plus its `users/{userId}` profile document.
 
+## Admin panel setup
+
+The admin panel uses Firebase custom claims. Its button is shown only when the signed-in user has the `admin: true` claim, and all account-management requests are verified by a Firebase Function.
+
+1. Install the function dependencies:
+
+   ```sh
+   npm --prefix functions install
+   ```
+
+2. Create the first administrator with a Firebase service-account credential. This account is promoted with a custom claim and receives the normal Firestore profile document:
+
+   ```sh
+   GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json \
+   ADMIN_EMAIL=shayveetake2@gmail.com \
+   ADMIN_PASSWORD='your-password' \
+   npm --prefix functions run bootstrap:admin
+   ```
+
+3. Deploy the trusted API:
+
+   ```sh
+   npx firebase-tools deploy --only functions
+   ```
+
+Sign out and back in after bootstrap so Firebase refreshes the custom claim. From then on, the in-app Admin panel can add or revoke other administrators. Revoking admin access does not delete the user's account.
+
 ## Cloudflare Pages deployment
 
 The deployed app uses Firebase Authentication and direct per-user Firestore documents. Forum photos are public image URLs stored in Firestore; the source image must already be hosted at a public URL.
