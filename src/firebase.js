@@ -27,24 +27,65 @@ export const signIn = (email, password) => signInWithEmailAndPassword(auth, emai
 export const signOutUser = () => signOut(auth);
 export const contactCodeForUser = (userId) => `VEL-${userId.slice(0, 8).toUpperCase()}`;
 
+import { deleteDoc } from 'firebase/firestore';
+
 export async function getCurrentUserClaims() {
   if (!auth.currentUser) return {};
-  const token = await auth.currentUser.getIdTokenResult(true);
-  return token.claims;
+  const snapshot = await getDoc(doc(db, 'admins', auth.currentUser.uid));
+  return { admin: snapshot.exists() };
 }
 
 export async function requestAdminAction(action, payload = {}) {
   if (!auth.currentUser) throw new Error('Sign in before using the admin panel.');
-  const token = await auth.currentUser.getIdToken();
-  const endpoint = import.meta.env.VITE_ADMIN_API_URL || `https://us-central1-${firebaseConfig.projectId}.cloudfunctions.net/adminPanel`;
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, ...payload })
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || 'The admin request failed.');
-  return data;
+  const { admin } = await getCurrentUserClaims();
+  if (!admin) throw new Error('Not an admin.');
+
+  if (action === 'listAdmins') {
+    const snapshot = await getDocs(collection(db, 'admins'));
+    return { admins: snapshot.docs.map(d => d.data()) };
+  } else if (action === 'createAdmin') {
+    // create secondary app to avoid signing out
+    const secondaryApp = initializeApp(firebaseConfig, 'Secondary');
+    const secondaryAuth = getAuth(secondaryApp);
+    const credential = await createUserWithEmailAndPassword(secondaryAuth, payload.email, payload.password);
+    const newUid = credential.user.uid;
+    const contactCode = contactCodeForUser(newUid);
+    
+    // Save to users
+    await setDoc(doc(db, 'users', newUid), {
+      email: payload.email,
+      name: payload.name,
+      username: payload.username.toLowerCase(),
+      contactCode,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    });
+    
+    // Save to messageAddresses
+    await setDoc(doc(db, 'messageAddresses', contactCode), {
+      uid: newUid,
+      name: payload.name,
+      username: payload.username.toLowerCase(),
+      email: payload.email,
+      contactCode
+    });
+    
+    // Save to admins
+    await setDoc(doc(db, 'admins', newUid), {
+      email: payload.email,
+      name: payload.name,
+      uid: newUid
+    });
+    
+    await signOut(secondaryAuth);
+    return { success: true };
+  } else if (action === 'removeAdmin') {
+    if (payload.uid === auth.currentUser.uid) throw new Error('Cannot remove yourself.');
+    const snapshot = await getDocs(collection(db, 'admins'));
+    if (snapshot.size <= 1) throw new Error('Cannot remove the last admin.');
+    await deleteDoc(doc(db, 'admins', payload.uid));
+    return { success: true };
+  }
 }
 
 export async function getUserProfile(userId) {
